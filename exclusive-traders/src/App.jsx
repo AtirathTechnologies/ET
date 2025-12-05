@@ -23,7 +23,7 @@ import useAnimation from './hooks/useAnimation';
 import Products from './components/Products';
 import AllProductsPage from './components/AllProductsPage';
 import BasmatiRSSFeed from './components/BasmatiRSSFed';
-import JoinUs from './components/joinus';
+import JoinUs from './components/JoinUs';
 import Blog from './components/Blog';
 import BlogPost from './components/BlogPost';
 import Leadership from './components/Leadership';
