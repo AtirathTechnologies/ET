@@ -1,0 +1,604 @@
+/* src/index.css or tailwind.css */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    margin-left: 0;
+    padding-left: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  }
+  
+  body {
+    background-color: theme('colors.dark');
+    color: theme('colors.light');
+    line-height: 1.6;
+    font-family: 'Inter', sans-serif;
+  }
+  
+  header {
+    z-index: 1000;
+    position: sticky;
+    top: 0;
+  }
+  
+  main {
+    min-height: 100vh;
+  }
+
+  /* Apply Inter font to all text elements */
+  h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea, select, label {
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-block bg-secondary text-dark py-3 px-7 rounded-full font-semibold transition-all duration-300 border-2 border-secondary shadow-neon font-inter;
+  }
+  
+  .btn:hover {
+    @apply bg-transparent text-secondary shadow-neon-hover;
+  }
+  
+  .service-card {
+    @apply bg-white/5 rounded-lg overflow-hidden transition-all duration-300 text-center p-8 border-t-4 border-secondary font-inter;
+    backdrop-filter: blur(4px);
+  }
+  
+  .service-card:hover {
+    @apply -translate-y-2.5 shadow-neon;
+  }
+  
+  .industry-item {
+    @apply text-center p-6 rounded-lg bg-white/5 transition-all duration-300 cursor-pointer font-inter;
+    backdrop-filter: blur(4px);
+  }
+  
+  .industry-item:hover {
+    @apply scale-105 shadow-neon;
+  }
+  
+  .product-card {
+    @apply bg-white/5 rounded-lg overflow-hidden shadow-lg transition-all duration-300 font-inter;
+    backdrop-filter: blur(4px);
+  }
+  
+  .product-card:hover {
+    @apply -translate-y-1 shadow-neon;
+  }
+  
+  .testimonial-slide {
+    @apply p-8 bg-white/5 rounded-lg shadow-neon font-inter;
+    backdrop-filter: blur(4px);
+  }
+  
+  .auth-form {
+    @apply max-w-lg mx-auto bg-white/5 p-8 rounded-lg shadow-neon font-inter;
+    backdrop-filter: blur(4px);
+  }
+  
+  .mobile-menu {
+    @apply w-full border-t border-gray-500 shadow-neon font-inter;
+  }
+  
+  .text-shadow-neon {
+    text-shadow: 0 0 10px theme('colors.white'), 0 0 20px theme('colors.white');
+  }
+
+  .sidebar {
+    @apply bg-white/5 rounded-lg p-0 sticky top-24 font-inter;
+    backdrop-filter: blur(4px);
+  }
+
+  /* Innovation Section Styles */
+  .innovation-card {
+    @apply bg-white/5 rounded-xl p-6 text-center transition-all duration-500 border border-white/10 font-inter;
+    backdrop-filter: blur(10px);
+  }
+  
+  .innovation-card:hover {
+    @apply transform scale-105 -translate-y-2 border-secondary/50;
+    box-shadow: 0 20px 40px rgba(34, 197, 94, 0.15);
+  }
+
+  /* Professional Typography */
+  .text-professional {
+    @apply font-inter leading-relaxed tracking-tight;
+  }
+
+  .heading-professional {
+    @apply font-inter font-bold tracking-tight leading-tight;
+  }
+}
+
+@layer utilities {
+  .font-inter {
+    font-family: 'Inter', sans-serif;
+  }
+
+  .text-shadow-glow {
+    text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
+  }
+
+  .backdrop-blur-sm {
+    backdrop-filter: blur(4px);
+  }
+
+  .backdrop-blur-md {
+    backdrop-filter: blur(8px);
+  }
+
+  .backdrop-blur-lg {
+    backdrop-filter: blur(16px);
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(var(--secondary-rgb), 0.5);
+  border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: theme('colors.secondary');
+}
+
+/* Animation Keyframes */
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-right {
+  0% {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scale-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.8s ease-out forwards;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out;
+}
+
+/* Buy Modal Styles */
+.buy-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+}
+
+.buy-modal-container {
+  position: relative;
+  background: theme('colors.dark');
+  border: 2px solid theme('colors.secondary');
+  border-radius: 16px;
+  max-width: 1000px;
+  width: 95%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.buy-modal-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.05;
+  z-index: -1;
+}
+
+.buy-modal-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: theme('colors.secondary');
+  color: theme('colors.dark');
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.3s ease;
+  font-family: 'Inter', sans-serif;
+}
+
+.buy-modal-close-btn:hover {
+  background: theme('colors.accent');
+}
+
+.buy-modal-header {
+  text-align: center;
+  padding: 40px 20px 20px;
+}
+
+.buy-modal-title {
+  color: theme('colors.secondary');
+  font-size: 2rem;
+  margin: 0;
+  text-shadow: 0 0 10px theme('colors.secondary');
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+}
+
+.buy-modal-content {
+  display: flex;
+  flex-direction: row;
+  padding: 0 20px 40px;
+}
+
+.buy-modal-form-section {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 70vh;
+  padding-right: 16px;
+}
+
+.buy-modal-bill-section {
+  flex: 1;
+  padding-left: 16px;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+}
+
+.buy-modal-body {
+  padding: 0;
+}
+
+.form-section {
+  margin-bottom: 30px;
+}
+
+.form-section h3 {
+  color: theme('colors.accent');
+  margin-bottom: 20px;
+  font-size: 1.25rem;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+}
+
+label {
+  display: block;
+  margin-bottom: 20px;
+  color: theme('colors.light');
+  opacity: 1;
+  font-weight: 500;
+  text-shadow: 0 0 3px rgba(255, 255, 255, 0.3);
+  font-family: 'Inter', sans-serif;
+}
+
+input, select, textarea {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid theme('colors.gray.600');
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  color: theme('colors.light');
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+  text-shadow: 0 0 2px rgba(255, 255, 255, 0.5);
+  font-family: 'Inter', sans-serif;
+}
+
+input::placeholder, select::placeholder, textarea::placeholder {
+  color: rgba(255, 255, 255, 0.8);
+  font-family: 'Inter', sans-serif;
+}
+
+select option {
+  background: theme('colors.dark');
+  color: theme('colors.light');
+  text-shadow: none;
+  font-family: 'Inter', sans-serif;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: theme('colors.secondary');
+  box-shadow: 0 0 0 3px theme('colors.secondary') / 0.2;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.input-field, .select-field, .textarea-field {
+  backdrop-filter: blur(4px);
+}
+
+.phone-input-group {
+  display: flex;
+  width: 100%;
+  gap: 8px;
+  align-items: center;
+}
+
+.country-code-select {
+  flex: 0 0 25%;
+  min-width: 80px;
+  position: relative;
+  z-index: 1002;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.country-code-select:focus {
+  z-index: 1003;
+}
+
+.country-code-select option {
+  z-index: 1004;
+  background: #1f2937;
+  color: #f9fafb;
+}
+
+.input-field.w-3\/4, .input-field.flex-1.basis-3\/4 {
+  flex: 1 1 75%;
+  min-width: 0;
+}
+
+.flex-grow {
+  flex-grow: 1;
+}
+
+.error-text {
+  color: #ef4444;
+  font-size: 0.875rem;
+  margin-top: 5px;
+  text-shadow: 0 0 2px rgba(255, 0, 0, 0.5);
+  font-family: 'Inter', sans-serif;
+}
+
+.submit-btn {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, theme('colors.secondary'), theme('colors.accent'));
+  color: theme('colors.dark');
+  border: none;
+  border-radius: 8px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+  font-family: 'Inter', sans-serif;
+}
+
+.submit-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px theme('colors.secondary') / 0.3;
+}
+
+.thank-you-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1001;
+  background: theme('colors.dark');
+  border: 2px solid theme('colors.secondary');
+  border-radius: 16px;
+  padding: 40px;
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+.popup-content {
+  opacity: 0;
+  transform: scale(0.9);
+  transition: all 0.3s ease;
+}
+
+.popup-content.show {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.popup-content.hide {
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+.popup-title {
+  color: theme('colors.secondary');
+  font-size: 1.5rem;
+  margin-bottom: 16px;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+}
+
+.popup-desc, .popup-info {
+  color: theme('colors.light');
+  margin-bottom: 8px;
+  text-shadow: 0 0 3px rgba(255, 255, 255, 0.3);
+  font-family: 'Inter', sans-serif;
+}
+
+.popup-actions {
+  margin-top: 24px;
+}
+
+.popup-close-btn {
+  padding: 12px 24px;
+  background: theme('colors.secondary');
+  color: theme('colors.dark');
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+}
+
+.popup-close-btn:hover {
+  background: theme('colors.accent');
+}
+
+.cost-breakdown-section {
+  animation: slideDown 0.3s ease-out;
+  backdrop-filter: blur(4px);
+}
+
+.cost-breakdown-section h4 {
+  text-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+  font-family: 'Inter', sans-serif;
+}
+
+@keyframes slideDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.cost-breakdown-section .flex span {
+  color: theme('colors.light');
+  text-shadow: 0 0 2px rgba(255, 255, 255, 0.3);
+  font-family: 'Inter', sans-serif;
+}
+
+.cost-breakdown-section .font-bold span {
+  text-shadow: 0 0 4px rgba(34, 197, 94, 0.5);
+  font-family: 'Inter', sans-serif;
+}
+
+/* Enhanced Innovation Styles */
+.innovation-grid {
+  display: grid;
+  gap: 2rem;
+}
+
+.innovation-feature-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 1rem;
+  padding: 2rem;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: 'Inter', sans-serif;
+}
+
+.innovation-feature-card:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 
+    0 20px 40px rgba(34, 197, 94, 0.15),
+    0 0 0 1px rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.6);
+}
+
+/* Professional spacing and typography */
+.professional-section {
+  @apply py-20 px-4;
+}
+
+.professional-heading {
+  @apply text-4xl font-bold text-center mb-16 font-inter;
+}
+
+.professional-subheading {
+  @apply text-2xl font-semibold mb-8 font-inter;
+}
+
+.professional-body {
+  @apply text-lg leading-relaxed font-inter;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+  .buy-modal-content {
+    flex-direction: column;
+  }
+  
+  .buy-modal-form-section,
+  .buy-modal-bill-section {
+    padding: 0;
+    max-height: none;
+  }
+  
+  .professional-heading {
+    @apply text-3xl;
+  }
+  
+  .professional-subheading {
+    @apply text-xl;
+  }
+}
