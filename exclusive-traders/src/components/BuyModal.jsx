@@ -490,20 +490,80 @@ const BuyModal = ({ isOpen, onClose, product, profile, industry }) => {
     }
   }, [packing, packingOptions]);
 
-  // Prefill form fields with profile data
+  // Prefill form fields with profile data - ENHANCED PHONE PARSING
   useEffect(() => {
     if (isOpen && profile) {
       const nameValue = profile.fullName || profile.displayName || profile.name || "";
       setFullName(nameValue);
       setEmail(profile.email || "");
-      if (profile.phone ) {
-        const phoneParts = profile.phone.split(" ");
-        if (phoneParts.length > 1) {
-          setCountryCode(phoneParts[0]);
-          setPhoneNumber(phoneParts.slice(1).join(" ").replace(/\D/g, ""));
-        } else {
+      
+      // Parse phone number from profile
+      if (profile.phone) {
+        // Try different formats
+        const phoneStr = String(profile.phone);
+        
+        // Check if phone is in format "+91 9876543210"
+        if (phoneStr.includes(" ")) {
+          const phoneParts = phoneStr.split(" ");
+          if (phoneParts.length > 1) {
+            setCountryCode(phoneParts[0]);
+            setPhoneNumber(phoneParts.slice(1).join(" ").replace(/\D/g, ""));
+          } else {
+            setCountryCode("+91");
+            setPhoneNumber(phoneStr.replace(/\D/g, ""));
+          }
+        } 
+        // Check if phone is in format "+919876543210"
+        else if (phoneStr.startsWith("+")) {
+          // Find the country code
+          const countryOption = countryOptions.find(opt => 
+            phoneStr.startsWith(opt.value)
+          );
+          
+          if (countryOption) {
+            setCountryCode(countryOption.value);
+            const numberPart = phoneStr.substring(countryOption.value.length);
+            setPhoneNumber(numberPart.replace(/\D/g, ""));
+          } else {
+            setCountryCode("+91");
+            setPhoneNumber(phoneStr.replace(/\D/g, "").substring(1));
+          }
+        } 
+        // Just numbers
+        else {
           setCountryCode("+91");
-          setPhoneNumber(profile.phone.replace(/\D/g, ""));
+          setPhoneNumber(phoneStr.replace(/\D/g, ""));
+        }
+      }
+      
+      // Also check localStorage for current user data
+      const localUser = localStorage.getItem('current_user');
+      if (localUser && !profile.phone) {
+        try {
+          const parsedUser = JSON.parse(localUser);
+          if (parsedUser.phone) {
+            const phoneStr = String(parsedUser.phone);
+            
+            if (phoneStr.includes(" ")) {
+              const phoneParts = phoneStr.split(" ");
+              if (phoneParts.length > 1) {
+                setCountryCode(phoneParts[0]);
+                setPhoneNumber(phoneParts.slice(1).join(" ").replace(/\D/g, ""));
+              }
+            } else if (phoneStr.startsWith("+")) {
+              const countryOption = countryOptions.find(opt => 
+                phoneStr.startsWith(opt.value)
+              );
+              
+              if (countryOption) {
+                setCountryCode(countryOption.value);
+                const numberPart = phoneStr.substring(countryOption.value.length);
+                setPhoneNumber(numberPart.replace(/\D/g, ""));
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Error parsing local user data:", e);
         }
       }
     }

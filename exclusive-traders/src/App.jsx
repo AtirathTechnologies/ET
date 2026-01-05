@@ -29,6 +29,7 @@ import Blog from './components/Blog';
 import BlogPost from './components/BlogPost';
 import Leadership from './components/Leadership';
 import Contactus from './components/Contactus';
+import BuyModal from './components/BuyModal'; // ADD THIS IMPORT
 
 // ---------- Admin Components ----------
 import AdminDashboard from './components/Admin/AdminDashboard';
@@ -68,6 +69,11 @@ function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showInnovationPage, setShowInnovationPage] = useState(false);
+  
+  // ADD THESE STATES FOR BUY MODAL
+  const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedIndustry, setSelectedIndustry] = useState('');
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -97,9 +103,9 @@ function App() {
   // Auth listener
   // -----------------------------------------------------------------
   useEffect(() => {
-  setIsMounted(true);
-  const unsubscribe = onAuthStateChanged(auth, (user) => {
-    if (user) {
+    setIsMounted(true);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
         setCurrentUser(user);
         localStorage.setItem(
           'currentUser',
@@ -182,6 +188,21 @@ function App() {
   };
 
   const handleSearchChange = (term) => setSearchTerm(term);
+
+  // -----------------------------------------------------------------
+  // ADD: Buy Modal Handlers
+  // -----------------------------------------------------------------
+  const openBuyModal = (product, industry) => {
+    setSelectedProduct(product);
+    setSelectedIndustry(industry);
+    setIsBuyModalOpen(true);
+  };
+
+  const closeBuyModal = () => {
+    setIsBuyModalOpen(false);
+    setSelectedProduct(null);
+    setSelectedIndustry('');
+  };
 
   // -----------------------------------------------------------------
   // Sign-out
@@ -319,6 +340,7 @@ function App() {
                 onAuthRequired={handleAuthRequired}
                 isSidebarOpen={isSidebarOpen}
                 toggleSidebar={toggleSidebar}
+                onBuyClick={openBuyModal} // PASS THE BUY MODAL HANDLER
               />
             }
           />
@@ -329,6 +351,7 @@ function App() {
                 showIndustryProducts={showIndustryProducts}
                 currentUser={currentUser}
                 onBackToIndustries={goBackToIndustries}
+                onBuyClick={openBuyModal} // PASS THE BUY MODAL HANDLER
               />
             }
           />
@@ -376,6 +399,15 @@ function App() {
 
       {/* Single Footer instance - Don't show on admin pages */}
       {!location.pathname.startsWith('/admin') && <Footer />}
+
+      {/* ADD: Buy Modal Component */}
+      <BuyModal
+        isOpen={isBuyModalOpen}
+        onClose={closeBuyModal}
+        product={selectedProduct}
+        profile={currentUser}
+        industry={selectedIndustry}
+      />
 
       {/* Auth Modal */}
       {showAuthModal && (

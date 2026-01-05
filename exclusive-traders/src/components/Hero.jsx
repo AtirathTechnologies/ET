@@ -30,9 +30,11 @@ const Hero = ({ showInnovation }) => {
   const [showPartnerModal, setShowPartnerModal] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [isScrollingPaused, setIsScrollingPaused] = useState(false);
-  const [transformPosition, setTransformPosition] = useState(0);
+  const [scrollPosition, setScrollPosition] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
+  const scrollAnimationRef = useRef(null);
+  const lastTimeRef = useRef(0);
 
   useEffect(() => {
     setIsClient(true);
@@ -355,44 +357,47 @@ const Hero = ({ showInnovation }) => {
     setIsScrollingPaused(false);
   };
 
-  // Manual scrolling animation - FASTER VERSION
+  // Smooth scrolling animation - FIXED VERSION
   useEffect(() => {
-    let animationId;
-    let lastTime = 0;
-    const scrollSpeed = isMobile ? 1.8 : (isTablet ? 2.2 : 2.5); 
+    let animationFrameId;
+    let lastTimestamp = 0;
+    const scrollSpeed = isMobile ? 0.8 : (isTablet ? 1.0 : 1.2); // Slower, smoother speed
     
     const animateScroll = (timestamp) => {
-      if (!lastTime) lastTime = timestamp;
-      const deltaTime = timestamp - lastTime;
+      if (!lastTimestamp) lastTimestamp = timestamp;
+      const deltaTime = timestamp - lastTimestamp;
       
-      if (deltaTime > 16) { // Approximately 60fps
+      // Only update at ~60fps for smoother animation
+      if (deltaTime >= 16) {
         if (!isScrollingPaused && scrollContentRef.current) {
-          setTransformPosition(prev => {
-            // Calculate the total width of the scrolling content
-            const scrollWidth = scrollContentRef.current?.scrollWidth || 0;
-            const containerWidth = scrollContainerRef.current?.offsetWidth || 0;
-            const maxScroll = scrollWidth / 2; // Half of total width for seamless loop
-            
-            // Move position with increased speed
+          setScrollPosition(prev => {
             let newPosition = prev - scrollSpeed;
             
-            // Reset when scrolled halfway for seamless loop
-            if (Math.abs(newPosition) >= maxScroll) {
-              newPosition = 0;
+            // Calculate total content width
+            const contentWidth = scrollContentRef.current?.scrollWidth || 0;
+            const containerWidth = scrollContainerRef.current?.offsetWidth || 0;
+            
+            // Reset position when scrolled beyond half of the duplicated content
+            // We duplicate content 4 times, so reset after scrolling through 1/4 of total width
+            if (Math.abs(newPosition) >= contentWidth / 4) {
+              return 0;
             }
             
             return newPosition;
           });
         }
-        lastTime = timestamp;
+        lastTimestamp = timestamp;
       }
-      animationId = requestAnimationFrame(animateScroll);
+      
+      animationFrameId = requestAnimationFrame(animateScroll);
     };
     
-    animationId = requestAnimationFrame(animateScroll);
+    animationFrameId = requestAnimationFrame(animateScroll);
     
     return () => {
-      cancelAnimationFrame(animationId);
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
     };
   }, [isScrollingPaused, isMobile, isTablet]);
 
@@ -474,9 +479,9 @@ const Hero = ({ showInnovation }) => {
             className="flex gap-4 sm:gap-6 md:gap-8 lg:gap-10 xl:gap-12"
             ref={scrollContentRef}
             style={{
-              transform: `translateX(${transformPosition}px)`,
-              transition: isScrollingPaused ? 'none' : 'transform 0.01s linear',
-              width: 'max-content'
+              transform: `translateX(${scrollPosition}px)`,
+              willChange: 'transform', // Optimize for smooth animations
+              transition: isScrollingPaused ? 'transform 0.3s ease-out' : 'none', // Smooth stop/start
             }}
           >
             {[...scrollImages, ...scrollImages, ...scrollImages, ...scrollImages].map((img, i) => {
@@ -845,6 +850,16 @@ const Hero = ({ showInnovation }) => {
             font-size: 1rem !important;
             line-height: 1.5rem !important;
           }
+        }
+        
+        /* Smooth scrolling container styles */
+        .scrolling-container {
+          -webkit-overflow-scrolling: touch;
+        }
+        
+        /* Prevent layout shift during animation */
+        .flex-shrink-0 {
+          flex-shrink: 0;
         }
       `}</style>
     </section>

@@ -137,16 +137,21 @@ const SignUp = ({ navigateToPage }) => {
       // Generate a unique temporary ID for the user data
       const tempUserId = `pending_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
+      // Store phone number in a format that's easy to parse in BuyModal
+      const fullPhone = `${countryCode} ${phoneNumber}`;
+      
       // Store user data in users collection with pending status
       const userRef = ref(db, `users/${tempUserId}`);
       await set(userRef, {
         email: normalizedEmail,
         password: password, // Store password for verification on signin
         displayName: displayName.trim(),
+        fullName: displayName.trim(), // Add fullName field for BuyModal
+        phone: fullPhone, // Store as string for BuyModal compatibility
         phoneNumber: {
           countryCode,
           number: phoneNumber,
-          fullNumber: `${countryCode}${phoneNumber}`
+          fullNumber: fullPhone
         },
         role: "user",
         isAdmin: false,
@@ -162,6 +167,15 @@ const SignUp = ({ navigateToPage }) => {
       // Store email and tempUserId in localStorage for signin page
       localStorage.setItem('pending_user_email', normalizedEmail);
       localStorage.setItem('pending_user_id', tempUserId);
+      
+      // Also store user data in localStorage for immediate access
+      localStorage.setItem('current_user', JSON.stringify({
+        email: normalizedEmail,
+        displayName: displayName.trim(),
+        fullName: displayName.trim(),
+        phone: fullPhone,
+        isGuest: false
+      }));
       
       // Auto-redirect to signin page immediately
       navigateToPage("signin");

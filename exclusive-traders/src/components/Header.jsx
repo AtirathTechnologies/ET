@@ -13,35 +13,55 @@ const Header = ({
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [activeSection, setActiveSection] = useState("home");
   const [isMobileView, setIsMobileView] = useState(false);
+  const [mainWebsiteUser, setMainWebsiteUser] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
   const scrollTimeoutRef = useRef(null);
 
-  // Check viewport for responsive behavior - UPDATED for Nest Hub Max
+  // Separate main website user from admin user
+  useEffect(() => {
+    // Check if we're on main website (not admin pages)
+    const isMainWebsite = !location.pathname.startsWith('/admin');
+    
+    if (isMainWebsite && currentUser) {
+      // Only store user if they logged in through main website (not admin panel)
+      // Check if it's a regular user (not admin)
+      const email = currentUser.email?.toLowerCase() || "";
+      const displayName = currentUser.displayName?.toLowerCase() || "";
+      
+      // If it looks like an admin user (has admin@exclusivetrader.com), don't show in main website
+      if (email.includes('admin@exclusivetrader.com') || 
+          displayName.includes('system administrator') ||
+          displayName.includes('admin')) {
+        // This is an admin user, don't show in main website
+        setMainWebsiteUser(null);
+      } else {
+        // This is a regular main website user
+        setMainWebsiteUser(currentUser);
+      }
+    } else {
+      setMainWebsiteUser(null);
+    }
+  }, [currentUser, location.pathname]);
+
+  // Check if user is logged in to MAIN WEBSITE (not admin panel)
+  const isMainWebsiteLoggedIn = !!mainWebsiteUser;
+
+  // Check viewport for responsive behavior
   useEffect(() => {
     const checkViewport = () => {
       const width = window.innerWidth;
       const height = window.innerHeight;
       const aspectRatio = width / height;
       
-      // Nest Hub Max has 1280x800 resolution (aspect ratio ~1.6)
-      // We'll treat it as mobile if:
-      // 1. Width is ≤ 1280px AND height is ≤ 900px (tablet/mobile range)
-      // OR
-      // 2. Aspect ratio suggests a mobile/tablet device (height is relatively large)
       const isNestHubMax = width === 1280 && height === 800;
       const isTabletSize = width <= 1280 && height <= 900;
-      const isMobileAspectRatio = aspectRatio < 1.7; // Mobile/tablets typically have smaller aspect ratios
+      const isMobileAspectRatio = aspectRatio < 1.7;
       
-      // Show toggle bar for:
-      // - All devices < 1280px width
-      // - Nest Hub Max specifically (1280x800)
-      // - Any device with tablet-like dimensions
       const shouldUseToggle = width < 1280 || isNestHubMax || (isTabletSize && isMobileAspectRatio);
       
       setIsMobileView(shouldUseToggle);
       
-      // Close mobile menu when switching to desktop view
       if (!shouldUseToggle && isMobileMenuOpen) {
         toggleMobileMenu(false);
       }
@@ -90,22 +110,18 @@ const Header = ({
   useEffect(() => {
     const currentPage = getCurrentPageFromPath();
     
-    // Clear any existing scroll timeout
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
     }
     
-    // Set active section immediately based on URL
     setActiveSection(currentPage);
   }, [location.pathname]);
 
   // Handle scroll detection ONLY on home page
   useEffect(() => {
-    // Only set up scroll detection if we're on the home page
     const isHomePage = location.pathname === '/' || location.pathname === '/home';
     
     if (!isHomePage) {
-      // If not on home page, remove any scroll listeners
       return;
     }
 
@@ -119,20 +135,18 @@ const Header = ({
         const windowHeight = window.innerHeight;
         const headerHeight = 100;
         
-        // Define all possible section IDs that might exist on home page
         const possibleSectionIds = [
           'home',
           'services',
           'about',
           'industries',
           'leadership',
-          'quote-request',
           'blog',
           'join-us',
+          'quote-request',
           'contact'
         ];
         
-        // Find which sections actually exist on the page
         const existingSections = possibleSectionIds
           .map(id => ({ id, element: document.getElementById(id) }))
           .filter(s => s.element !== null)
@@ -148,17 +162,13 @@ const Header = ({
           return;
         }
         
-        // Sort by top position
         existingSections.sort((a, b) => a.top - b.top);
         
-        // Find current section based on scroll position with precise calculation
         let currentSection = 'home';
         
-        // Check if we're at the very top
         if (scrollPosition < 50) {
           currentSection = 'home';
         } else {
-          // Check which section is most visible in the viewport
           let maxVisibleArea = 0;
           let mostVisibleSection = 'home';
           
@@ -177,7 +187,6 @@ const Header = ({
             }
           }
           
-          // If no section has significant visible area, find the closest section
           if (maxVisibleArea < windowHeight * 0.1) {
             let closestDistance = Infinity;
             let closestSection = 'home';
@@ -199,17 +208,14 @@ const Header = ({
           }
         }
         
-        // Only update if it's different
         if (currentSection !== activeSection) {
           setActiveSection(currentSection);
         }
       }, 100);
     };
 
-    // Add scroll listener
     window.addEventListener('scroll', handleScroll, { passive: true });
     
-    // Initial check
     setTimeout(() => {
       handleScroll();
     }, 300);
@@ -228,6 +234,10 @@ const Header = ({
     onSignOut();
     setShowProfileDropdown(false);
     toggleMobileMenu(false);
+    // Also clear main website user
+    setMainWebsiteUser(null);
+    // Redirect to home after sign out
+    navigate('/');
   };
 
   const handleProfileDropdown = (e) => {
@@ -241,23 +251,18 @@ const Header = ({
     
     const currentPage = getCurrentPageFromPath();
     
-    // Always update active section immediately
     setActiveSection(page);
     
-    // If clicking on home link when already on home, scroll to top
     if (page === 'home' && currentPage === 'home') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       toggleMobileMenu(false);
       return;
     }
     
-    // If we're on home page and clicking a section that exists on home page
     if (currentPage === 'home' && (location.pathname === '/' || location.pathname === '/home')) {
-      // Check if this section exists on the current home page
       const sectionElement = document.getElementById(page);
       
       if (sectionElement) {
-        // Scroll to the section on home page
         const headerHeight = 100;
         window.scrollTo({
           top: sectionElement.offsetTop - headerHeight,
@@ -268,7 +273,6 @@ const Header = ({
       }
     }
     
-    // If we're not on the target page, or the section doesn't exist on current page, navigate
     if (currentPage !== page || !document.getElementById(page)) {
       navigateToPage(page);
       toggleMobileMenu(false);
@@ -280,13 +284,11 @@ const Header = ({
     const isHomePage = currentPage === 'home' && (location.pathname === '/' || location.pathname === '/home');
     
     if (isHomePage) {
-      // On home page, check if this is the active section based on scroll
       return activeSection === page
         ? "text-secondary text-shadow-neon font-bold"
         : "text-light hover:text-secondary hover:text-shadow-neon transition-all duration-200";
     }
     
-    // On other pages, check if this is the current page
     return currentPage === page
       ? "text-secondary text-shadow-neon font-bold"
       : "text-light hover:text-secondary hover:text-shadow-neon transition-all duration-200";
@@ -297,57 +299,55 @@ const Header = ({
     const isHomePage = currentPage === 'home' && (location.pathname === '/' || location.pathname === '/home');
     
     if (isHomePage) {
-      // On home page, check if this is the active section based on scroll
       return activeSection === page
         ? "bg-secondary/20 text-secondary font-bold border-l-4 border-secondary"
         : "text-light hover:bg-primary/50 hover:text-secondary";
     }
     
-    // On other pages, check if this is the current page
     return currentPage === page
       ? "bg-secondary/20 text-secondary font-bold border-l-4 border-secondary"
       : "text-light hover:bg-primary/50 hover:text-secondary";
   };
 
   const getUserInitials = () => {
-    if (!currentUser) return "US";
-    if (currentUser.displayName) {
-      return currentUser.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    if (!mainWebsiteUser) return "US";
+    if (mainWebsiteUser.displayName) {
+      return mainWebsiteUser.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     }
-    return currentUser.email?.substring(0, 2).toUpperCase() || "US";
+    return mainWebsiteUser.email?.substring(0, 2).toUpperCase() || "US";
   };
 
   const getUserDisplayName = () => {
-    if (!currentUser) return "";
-    return currentUser.displayName || currentUser.email?.split('@')[0] || "User";
+    if (!mainWebsiteUser) return "";
+    return mainWebsiteUser.displayName || mainWebsiteUser.email?.split('@')[0] || "User";
   };
 
-  // Get user role
+  // Get user role - only for main website users
   const getUserRole = () => {
-    if (!currentUser) return "Guest";
-    const email = currentUser.email?.toLowerCase() || "";
-    if (email.includes('admin') || email.includes('system') || email.includes('administrator')) {
-      return "System Administrator";
+    if (!mainWebsiteUser) return "Guest";
+    
+    if (mainWebsiteUser.role) {
+      // Never show "System Administrator" or "Admin" on main website
+      const role = mainWebsiteUser.role.toLowerCase();
+      if (role.includes('admin') || role.includes('system administrator')) {
+        return "Member"; // Force to Member for admin users on main website
+      }
+      return mainWebsiteUser.role;
     }
-    if (email.includes('manager')) {
-      return "Manager";
-    }
-    if (email.includes('support')) {
-      return "Support Staff";
-    }
-    return "Registered User";
+    
+    return "Member";
   };
 
   return (
-    <header className="bg-primary/90 text-light py-2 md:py-3 sticky top-0 z-50 shadow-neon backdrop-blur-sm w-full">
-      <div className="w-full flex justify-between items-center px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12">
-        {/* Logo + Tagline */}
+    <header className="bg-primary/90 text-light py-3 sticky top-0 z-50 shadow-neon backdrop-blur-sm w-full">
+      <div className="w-full flex justify-between items-center px-4 sm:px-6 md:px-8">
+        {/* Logo + Brand */}
         <div className="flex items-center flex-shrink min-w-0">
-          <div className="flex items-center gap-2 sm:gap-3 md:gap-4 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <img
               src={logo}
               alt="Logo"
-              className="h-8 sm:h-9 md:h-10 lg:h-11 xl:h-12 w-auto object-contain drop-shadow-neon cursor-pointer flex-shrink-0"
+              className="h-8 sm:h-9 md:h-10 w-auto object-contain drop-shadow-neon cursor-pointer flex-shrink-0"
               onClick={(e) => handleNavClick("home", e)}
               onError={(e) => {
                 e.target.src = 'https://via.placeholder.com/150?text=ET';
@@ -355,86 +355,85 @@ const Header = ({
             />
             <div className="flex flex-col leading-tight min-w-0 flex-shrink">
               <div 
-                className="cursor-pointer font-serif truncate"
+                className="cursor-pointer font-serif"
                 onClick={(e) => handleNavClick("home", e)}
               >
-                <span className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl font-bold">
+                <span className="text-lg sm:text-xl md:text-2xl font-bold">
                   Exclusive Trader
-                  <span className="text-secondary text-shadow-black"> </span>
                 </span>
               </div>
-              <span className="text-[10px] sm:text-xs md:text-sm lg:text-base xl:text-lg text-light/80 font-serif tracking-wider truncate">
+              <span className="text-xs sm:text-sm md:text-base text-light/80 font-serif tracking-wider truncate">
                 Your Partner in Commerce
               </span>
             </div>
           </div>
         </div>
 
-        {/* Right side: Navigation + Profile + Auth */}
-        <div className="flex items-center gap-4 sm:gap-5 md:gap-6 lg:gap-7 xl:gap-8">
-          {/* DESKTOP NAVIGATION - Only visible on true desktop screens (≥1281px and not mobile-like) */}
-          <nav className="hidden xl:flex items-center gap-2 2xl:gap-4">
+        {/* Right side: Navigation + Profile/Auth */}
+        <div className="flex items-center gap-3 sm:gap-4 md:gap-5">
+          {/* DESKTOP NAVIGATION - Only visible on true desktop screens */}
+          <nav className="hidden lg:flex items-center gap-2">
             {!isMobileView && (
               <>
                 <Link 
                   to="/home" 
-                  className={`font-medium px-4 py-2 rounded-lg transition-all duration-200 text-sm xl:text-base ${isActivePage("home")}`} 
+                  className={`font-medium px-3 py-2 rounded-lg transition-all duration-200 text-sm ${isActivePage("home")}`} 
                   onClick={(e) => handleNavClick("home", e)}
                 >
                   Home
                 </Link>
                 <Link 
                   to="/about" 
-                  className={`font-medium px-4 py-2 rounded-lg transition-all duration-200 text-sm xl:text-base ${isActivePage("about")}`} 
+                  className={`font-medium px-3 py-2 rounded-lg transition-all duration-200 text-sm ${isActivePage("about")}`} 
                   onClick={(e) => handleNavClick("about", e)}
                 >
                   About
                 </Link>
                 <Link 
                   to="/services" 
-                  className={`font-medium px-4 py-2 rounded-lg transition-all duration-200 text-sm xl:text-base ${isActivePage("services")}`} 
+                  className={`font-medium px-3 py-2 rounded-lg transition-all duration-200 text-sm ${isActivePage("services")}`} 
                   onClick={(e) => handleNavClick("services", e)}
                 >
                   Services
                 </Link>
                 <Link 
                   to="/industries" 
-                  className={`font-medium px-4 py-2 rounded-lg transition-all duration-200 text-sm xl:text-base ${isActivePage("industries")}`} 
+                  className={`font-medium px-3 py-2 rounded-lg transition-all duration-200 text-sm ${isActivePage("industries")}`} 
                   onClick={(e) => handleNavClick("industries", e)}
                 >
                   Industries
                 </Link>
                 <Link 
                   to="/leadership" 
-                  className={`font-medium px-4 py-2 rounded-lg transition-all duration-200 text-sm xl:text-base ${isActivePage("leadership")}`} 
+                  className={`font-medium px-3 py-2 rounded-lg transition-all duration-200 text-sm ${isActivePage("leadership")}`} 
                   onClick={(e) => handleNavClick("leadership", e)}
                 >
                   Leadership
                 </Link>
                 <Link 
-                  to="/quote-request" 
-                  className={`font-medium px-4 py-2 rounded-lg transition-all duration-200 text-sm xl:text-base ${isActivePage("quote-request")}`} 
-                  onClick={(e) => handleNavClick("quote-request", e)}
-                >
-                  Feedback
-                </Link>
-                <Link 
                   to="/blog" 
-                  className={`font-medium px-4 py-2 rounded-lg transition-all duration-200 text-sm xl:text-base ${isActivePage("blog")}`} 
+                  className={`font-medium px-3 py-2 rounded-lg transition-all duration-200 text-sm ${isActivePage("blog")}`} 
                   onClick={(e) => handleNavClick("blog", e)}
                 >
                   Blog
                 </Link>
                 <Link 
                   to="/join-us" 
-                  className={`font-medium px-4 py-2 rounded-lg transition-all duration-200 text-sm xl:text-base ${isActivePage("join-us")}`} 
+                  className={`font-medium px-3 py-2 rounded-lg transition-all duration-200 text-sm ${isActivePage("join-us")}`} 
                   onClick={(e) => handleNavClick("join-us", e)}
                 >
                   Join Us
                 </Link>
                 <Link 
+                  to="/quote-request" 
+                  className={`font-medium px-3 py-2 rounded-lg transition-all duration-200 text-sm ${isActivePage("quote-request")}`} 
+                  onClick={(e) => handleNavClick("quote-request", e)}
+                >
+                  Feedback
+                </Link>
+                <Link 
                   to="/contact" 
-                  className={`font-medium px-4 py-2 rounded-lg transition-all duration-200 text-sm xl:text-base ${isActivePage("contact")}`} 
+                  className={`font-medium px-3 py-2 rounded-lg transition-all duration-200 text-sm ${isActivePage("contact")}`} 
                   onClick={(e) => handleNavClick("contact", e)}
                 >
                   Contact
@@ -443,11 +442,11 @@ const Header = ({
             )}
           </nav>
 
-          {/* Profile avatar (visible when logged in and not in mobile view) */}
-          {currentUser && !isMobileView && (
+          {/* Show profile avatar when logged in to MAIN WEBSITE */}
+          {isMainWebsiteLoggedIn && !isMobileView && (
             <div className="profile-dropdown">
               <div
-                className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 xl:w-12 xl:h-12 bg-secondary rounded-full flex items-center justify-center text-dark font-bold text-sm sm:text-base lg:text-lg xl:text-xl cursor-pointer flex-shrink-0"
+                className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-secondary rounded-full flex items-center justify-center text-dark font-bold text-sm cursor-pointer flex-shrink-0"
                 onClick={handleProfileDropdown}
               >
                 {getUserInitials()}
@@ -455,25 +454,25 @@ const Header = ({
             </div>
           )}
 
-          {/* Desktop Auth buttons for non-logged in users (when not in mobile view) */}
-          {!currentUser && !isMobileView && (
-            <div className="hidden lg:flex items-center gap-3 xl:gap-4">
+          {/* Show Sign In/Sign Up buttons when NOT logged in to MAIN WEBSITE */}
+          {!isMainWebsiteLoggedIn && !isMobileView && (
+            <div className="hidden lg:flex items-center gap-2">
               <Link 
                 to="/signin" 
-                className="font-medium hover:text-secondary transition-colors px-4 py-2 rounded-lg hover:bg-primary/50 text-sm lg:text-base xl:text-lg"
+                className={`font-medium px-3 py-2 rounded-lg transition-all duration-200 text-sm ${isActivePage("signin")} hover:bg-primary/50`}
               >
                 Sign In
               </Link>
               <Link 
                 to="/signup" 
-                className="font-medium bg-secondary text-dark px-5 py-2 rounded-lg hover:bg-accent transition-colors text-sm lg:text-base xl:text-lg"
+                className="font-medium bg-secondary text-dark px-4 py-2 rounded-lg hover:bg-accent transition-colors text-sm"
               >
                 Sign Up
               </Link>
             </div>
           )}
 
-          {/* Mobile Menu Toggle - Visible when isMobileView is true (including Nest Hub Max) */}
+          {/* Mobile Menu Toggle - Visible when isMobileView is true */}
           {isMobileView && (
             <button
               onClick={() => toggleMobileMenu()}
@@ -481,7 +480,7 @@ const Header = ({
               aria-label="Toggle menu"
             >
               <svg 
-                className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 xl:w-11 xl:h-11" 
+                className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8" 
                 fill="none" 
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
@@ -507,16 +506,16 @@ const Header = ({
         </div>
       </div>
 
-      {/* Mobile Menu - For all mobile/tablet views (including Nest Hub Max) */}
+      {/* Mobile Menu - For all mobile/tablet views */}
       {isMobileView && isMobileMenuOpen && (
-        <div className="fixed inset-0 top-14 sm:top-16 md:top-18 lg:top-20 xl:top-22 z-40">
+        <div className="fixed inset-0 top-16 sm:top-18 md:top-20 z-40">
           <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => toggleMobileMenu(false)}></div>
           <nav className="absolute top-0 left-0 right-0 bg-primary/95 backdrop-blur-sm border-t border-secondary shadow-neon max-h-[85vh] overflow-y-auto">
-            <ul className="flex flex-col items-center gap-0 px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 py-4 sm:py-5 lg:py-6">
+            <ul className="flex flex-col items-center gap-0 px-4 py-4">
               <li className="w-full">
                 <Link 
                   to="/home" 
-                  className={`font-medium block py-3 px-4 rounded-lg transition-all duration-200 text-base sm:text-lg md:text-xl lg:text-2xl ${isMobileActivePage("home")}`} 
+                  className={`font-medium block py-3 px-4 rounded-lg transition-all duration-200 text-base ${isMobileActivePage("home")}`} 
                   onClick={(e) => { handleNavClick("home", e); toggleMobileMenu(false); }}
                 >
                   Home
@@ -525,7 +524,7 @@ const Header = ({
               <li className="w-full">
                 <Link 
                   to="/about" 
-                  className={`font-medium block py-3 px-4 rounded-lg transition-all duration-200 text-base sm:text-lg md:text-xl lg:text-2xl ${isMobileActivePage("about")}`} 
+                  className={`font-medium block py-3 px-4 rounded-lg transition-all duration-200 text-base ${isMobileActivePage("about")}`} 
                   onClick={(e) => { handleNavClick("about", e); toggleMobileMenu(false); }}
                 >
                   About
@@ -534,7 +533,7 @@ const Header = ({
               <li className="w-full">
                 <Link 
                   to="/services" 
-                  className={`font-medium block py-3 px-4 rounded-lg transition-all duration-200 text-base sm:text-lg md:text-xl lg:text-2xl ${isMobileActivePage("services")}`} 
+                  className={`font-medium block py-3 px-4 rounded-lg transition-all duration-200 text-base ${isMobileActivePage("services")}`} 
                   onClick={(e) => { handleNavClick("services", e); toggleMobileMenu(false); }}
                 >
                   Services
@@ -543,7 +542,7 @@ const Header = ({
               <li className="w-full">
                 <Link 
                   to="/industries" 
-                  className={`font-medium block py-3 px-4 rounded-lg transition-all duration-200 text-base sm:text-lg md:text-xl lg:text-2xl ${isMobileActivePage("industries")}`} 
+                  className={`font-medium block py-3 px-4 rounded-lg transition-all duration-200 text-base ${isMobileActivePage("industries")}`} 
                   onClick={(e) => { handleNavClick("industries", e); toggleMobileMenu(false); }}
                 >
                   Industries
@@ -552,7 +551,7 @@ const Header = ({
               <li className="w-full">
                 <Link 
                   to="/leadership" 
-                  className={`font-medium block py-3 px-4 rounded-lg transition-all duration-200 text-base sm:text-lg md:text-xl lg:text-2xl ${isMobileActivePage("leadership")}`} 
+                  className={`font-medium block py-3 px-4 rounded-lg transition-all duration-200 text-base ${isMobileActivePage("leadership")}`} 
                   onClick={(e) => { handleNavClick("leadership", e); toggleMobileMenu(false); }}
                 >
                   Leadership
@@ -560,17 +559,8 @@ const Header = ({
               </li>
               <li className="w-full">
                 <Link 
-                  to="/quote-request" 
-                  className={`font-medium block py-3 px-4 rounded-lg transition-all duration-200 text-base sm:text-lg md:text-xl lg:text-2xl ${isMobileActivePage("quote-request")}`} 
-                  onClick={(e) => { handleNavClick("quote-request", e); toggleMobileMenu(false); }}
-                >
-                  Feedback
-                </Link>
-              </li>
-              <li className="w-full">
-                <Link 
                   to="/blog" 
-                  className={`font-medium block py-3 px-4 rounded-lg transition-all duration-200 text-base sm:text-lg md:text-xl lg:text-2xl ${isMobileActivePage("blog")}`} 
+                  className={`font-medium block py-3 px-4 rounded-lg transition-all duration-200 text-base ${isMobileActivePage("blog")}`} 
                   onClick={(e) => { handleNavClick("blog", e); toggleMobileMenu(false); }}
                 >
                   Blog
@@ -579,7 +569,7 @@ const Header = ({
               <li className="w-full">
                 <Link 
                   to="/join-us" 
-                  className={`font-medium block py-3 px-4 rounded-lg transition-all duration-200 text-base sm:text-lg md:text-xl lg:text-2xl ${isMobileActivePage("join-us")}`} 
+                  className={`font-medium block py-3 px-4 rounded-lg transition-all duration-200 text-base ${isMobileActivePage("join-us")}`} 
                   onClick={(e) => { handleNavClick("join-us", e); toggleMobileMenu(false); }}
                 >
                   Join Us
@@ -587,50 +577,59 @@ const Header = ({
               </li>
               <li className="w-full">
                 <Link 
+                  to="/quote-request" 
+                  className={`font-medium block py-3 px-4 rounded-lg transition-all duration-200 text-base ${isMobileActivePage("quote-request")}`} 
+                  onClick={(e) => { handleNavClick("quote-request", e); toggleMobileMenu(false); }}
+                >
+                  Feedback
+                </Link>
+              </li>
+              <li className="w-full">
+                <Link 
                   to="/contact" 
-                  className={`font-medium block py-3 px-4 rounded-lg transition-all duration-200 text-base sm:text-lg md:text-xl lg:text-2xl ${isMobileActivePage("contact")}`} 
+                  className={`font-medium block py-3 px-4 rounded-lg transition-all duration-200 text-base ${isMobileActivePage("contact")}`} 
                   onClick={(e) => { handleNavClick("contact", e); toggleMobileMenu(false); }}
                 >
                   Contact
                 </Link>
               </li>
 
-              {/* Profile section for logged-in users */}
-              {currentUser && (
+              {/* Profile section for MAIN WEBSITE users only */}
+              {isMainWebsiteLoggedIn && (
                 <li className="w-full pt-5 mt-4 border-t border-gray-700">
-                  <div className="px-4 py-4 sm:px-5 sm:py-5 lg:px-6 lg:py-6 xl:px-8 xl:py-8 bg-secondary/10 rounded-lg mb-4">
-                    <div className="flex items-center justify-center gap-3 lg:gap-4 xl:gap-6">
-                      <div className="w-12 h-12 lg:w-14 lg:h-14 xl:w-16 xl:h-16 bg-secondary rounded-full flex items-center justify-center text-dark font-bold text-lg lg:text-xl xl:text-2xl">
+                  <div className="px-4 py-4 bg-secondary/10 rounded-lg mb-4">
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center text-dark font-bold text-lg">
                         {getUserInitials()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-secondary text-lg sm:text-xl lg:text-2xl xl:text-3xl truncate">
+                        <p className="font-bold text-secondary text-base truncate">
                           {getUserRole()}
                         </p>
-                        <p className="text-sm lg:text-base xl:text-lg text-gray-300 truncate mt-1">
-                          {currentUser.email}
+                        <p className="text-sm text-gray-300 truncate mt-1">
+                          {mainWebsiteUser.email}
                         </p>
                       </div>
                     </div>
                   </div>
-                  <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5 xl:gap-6">
+                  <div className="flex flex-col gap-3">
                     <Link 
                       to="/account" 
-                      className="font-medium hover:text-secondary transition-colors block py-3 px-4 rounded-lg text-center border border-secondary hover:bg-secondary/10 transition-all duration-200 text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl"
+                      className="font-medium hover:text-secondary transition-colors block py-3 px-4 rounded-lg text-center border border-secondary hover:bg-secondary/10 transition-all duration-200 text-base"
                       onClick={() => toggleMobileMenu(false)}
                     >
                       My Account
                     </Link>
                     <Link 
                       to="/orders" 
-                      className="font-medium hover:text-secondary transition-colors block py-3 px-4 rounded-lg text-center border border-secondary hover:bg-secondary/10 transition-all duration-200 text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl"
+                      className="font-medium hover:text-secondary transition-colors block py-3 px-4 rounded-lg text-center border border-secondary hover:bg-secondary/10 transition-all duration-200 text-base"
                       onClick={() => toggleMobileMenu(false)}
                     >
                       My Orders
                     </Link>
                     <Link 
                       to="/settings" 
-                      className="font-medium hover:text-secondary transition-colors block py-3 px-4 rounded-lg text-center border border-secondary hover:bg-secondary/10 transition-all duration-200 text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl"
+                      className="font-medium hover:text-secondary transition-colors block py-3 px-4 rounded-lg text-center border border-secondary hover:bg-secondary/10 transition-all duration-200 text-base"
                       onClick={() => toggleMobileMenu(false)}
                     >
                       Settings
@@ -638,7 +637,7 @@ const Header = ({
                     <a 
                       href="#signout" 
                       onClick={handleSignOutClick} 
-                      className="font-medium hover:text-red-400 transition-colors block py-3 px-4 rounded-lg text-center border border-red-500 hover:bg-red-500/10 transition-all duration-200 text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl"
+                      className="font-medium hover:text-red-400 transition-colors block py-3 px-4 rounded-lg text-center border border-red-500 hover:bg-red-500/10 transition-all duration-200 text-base"
                     >
                       Sign Out
                     </a>
@@ -646,20 +645,20 @@ const Header = ({
                 </li>
               )}
 
-              {/* Auth section for non-logged in users */}
-              {!currentUser && (
+              {/* Show Sign In/Sign Up when NOT logged in to MAIN WEBSITE */}
+              {!isMainWebsiteLoggedIn && (
                 <li className="w-full pt-5 mt-4 border-t border-gray-700">
-                  <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5 xl:gap-6">
+                  <div className="flex flex-col gap-3">
                     <Link 
                       to="/signin" 
-                      className="font-medium hover:text-secondary transition-colors block py-3 px-4 rounded-lg text-center border border-secondary hover:bg-secondary/10 transition-all duration-200 text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl"
+                      className={`font-medium block py-3 px-4 rounded-lg text-center border border-secondary hover:bg-secondary/10 transition-all duration-200 text-base ${isMobileActivePage("signin")}`}
                       onClick={() => toggleMobileMenu(false)}
                     >
                       Sign In
                     </Link>
                     <Link 
                       to="/signup" 
-                      className="font-medium bg-secondary text-dark block py-3 px-4 rounded-lg hover:bg-accent transition-colors text-center transition-all duration-200 text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl"
+                      className="font-medium bg-secondary text-dark block py-3 px-4 rounded-lg hover:bg-accent transition-colors text-center transition-all duration-200 text-base"
                       onClick={() => toggleMobileMenu(false)}
                     >
                       Sign Up
@@ -672,57 +671,55 @@ const Header = ({
         </div>
       )}
 
-      {/* Profile dropdown for logged-in users on desktop */}
-      {currentUser && showProfileDropdown && !isMobileView && (
-        <div className="fixed top-14 sm:top-16 md:top-18 lg:top-20 xl:top-22 right-4 sm:right-6 md:right-8 lg:right-10 xl:right-12 z-50 profile-dropdown">
-          <div className="w-56 sm:w-64 md:w-72 lg:w-80 xl:w-96 bg-primary/95 backdrop-blur-sm border border-secondary rounded-lg shadow-neon">
+      {/* Profile dropdown for MAIN WEBSITE users on desktop */}
+      {isMainWebsiteLoggedIn && showProfileDropdown && !isMobileView && (
+        <div className="fixed top-16 sm:top-18 md:top-20 right-4 sm:right-6 md:right-8 z-50 profile-dropdown">
+          <div className="w-56 sm:w-64 md:w-72 bg-primary/95 backdrop-blur-sm border border-secondary rounded-lg shadow-neon">
             <div className="py-1">
-              {/* User Info Header */}
-              <div className="px-5 py-4 lg:px-6 lg:py-5 xl:px-8 xl:py-6 bg-secondary/10 border-b border-secondary">
-                <p className="font-bold text-secondary text-sm sm:text-base lg:text-lg xl:text-xl truncate">
+              <div className="px-4 py-3 border-b border-secondary bg-secondary/10">
+                <p className="font-bold text-secondary text-sm truncate">
                   {getUserRole()}
                 </p>
-                <p className="text-xs sm:text-sm lg:text-base xl:text-lg text-gray-300 truncate mt-1">
-                  {currentUser.email}
+                <p className="text-xs text-gray-300 truncate mt-1">
+                  {mainWebsiteUser.email}
                 </p>
               </div>
               
-              {/* Account Menu Items */}
               <Link 
                 to="/account" 
-                className="flex items-center gap-3 px-5 py-3 lg:px-6 lg:py-4 xl:px-8 xl:py-5 text-light hover:bg-secondary/20 hover:text-secondary transition-colors text-sm sm:text-base lg:text-lg xl:text-xl border-b border-gray-700"
+                className="flex items-center gap-3 px-4 py-3 text-light hover:bg-secondary/20 hover:text-secondary transition-colors text-sm border-b border-gray-700"
                 onClick={() => setShowProfileDropdown(false)}
               >
-                <i className="fas fa-user-circle w-5 lg:w-6 xl:w-7 text-center"></i>
+                <i className="fas fa-user-circle w-5 text-center"></i>
                 <span className="font-medium">My Account</span>
               </Link>
               
               <Link 
                 to="/orders" 
-                className="flex items-center gap-3 px-5 py-3 lg:px-6 lg:py-4 xl:px-8 xl:py-5 text-light hover:bg-secondary/20 hover:text-secondary transition-colors text-sm sm:text-base lg:text-lg xl:text-xl border-b border-gray-700"
+                className="flex items-center gap-3 px-4 py-3 text-light hover:bg-secondary/20 hover:text-secondary transition-colors text-sm border-b border-gray-700"
                 onClick={() => setShowProfileDropdown(false)}
               >
-                <i className="fas fa-shopping-bag w-5 lg:w-6 xl:w-7 text-center"></i>
+                <i className="fas fa-shopping-bag w-5 text-center"></i>
                 <span className="font-medium">My Orders</span>
               </Link>
               
               <Link 
                 to="/settings" 
-                className="flex items-center gap-3 px-5 py-3 lg:px-6 lg:py-4 xl:px-8 xl:py-5 text-light hover:bg-secondary/20 hover:text-secondary transition-colors text-sm sm:text-base lg:text-lg xl:text-xl border-b border-gray-700"
+                className="flex items-center gap-3 px-4 py-3 text-light hover:bg-secondary/20 hover:text-secondary transition-colors text-sm border-b border-gray-700"
                 onClick={() => setShowProfileDropdown(false)}
               >
-                <i className="fas fa-cog w-5 lg:w-6 xl:w-7 text-center"></i>
+                <i className="fas fa-cog w-5 text-center"></i>
                 <span className="font-medium">Settings</span>
               </Link>
               
-              <div className="border-t border-gray-700 my-1 lg:my-2 xl:my-3"></div>
+              <div className="border-t border-gray-700 my-2"></div>
               
               <a 
                 href="#signout" 
                 onClick={handleSignOutClick} 
-                className="flex items-center gap-3 px-5 py-3 lg:px-6 lg:py-4 xl:px-8 xl:py-5 text-light hover:bg-red-500/20 hover:text-red-400 transition-colors text-sm sm:text-base lg:text-lg xl:text-xl"
+                className="flex items-center gap-3 px-4 py-3 text-light hover:bg-red-500/20 hover:text-red-400 transition-colors text-sm"
               >
-                <i className="fas fa-sign-out-alt w-5 lg:w-6 xl:w-7 text-center"></i>
+                <i className="fas fa-sign-out-alt w-5 text-center"></i>
                 <span className="font-medium">Sign Out</span>
               </a>
             </div>
