@@ -66,8 +66,9 @@ const Contact = ({ onBackToHome }) => {
                   <h3 className="font-semibold text-white mb-2">
                     Our Office
                   </h3>
-                  <p className="text-light/70">123 Trade Center</p>
-                  <p className="text-light/70">Mumbai, India 400001</p>
+                  <p className="text-light/70">1st Floor, 8 Quary Wharf, Abbey Road,
+                    Barking, London, IG11 7BZ.</p>
+                  <p className="text-light/70"></p>
                 </div>
               </div>
 
@@ -80,7 +81,7 @@ const Contact = ({ onBackToHome }) => {
                   <h3 className="font-semibold text-white mb-2">
                     Call Us
                   </h3>
-                  <p className="text-light/70">+91 59765 43210</p>
+                  <p className="text-light/70">+44 20 1234 5678</p>
                 </div>
               </div>
 
@@ -93,7 +94,7 @@ const Contact = ({ onBackToHome }) => {
                   <h3 className="font-semibold text-white mb-2">
                     Email
                   </h3>
-                  <p className="text-light/70">contact@exclusivetrader.com</p>
+                  <p className="text-light/70">fmcg@exclusivetrader.co.uk</p>
                 </div>
               </div>
 
