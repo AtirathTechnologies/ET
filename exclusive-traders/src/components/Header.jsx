@@ -1,6 +1,8 @@
 // src/components/Header.jsx
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { db } from "../firebase";
+import { ref, get } from "firebase/database";
 import logo from "../assets/logo.png";
 
 const Header = ({
@@ -14,35 +16,132 @@ const Header = ({
   const [activeSection, setActiveSection] = useState("home");
   const [isMobileView, setIsMobileView] = useState(false);
   const [mainWebsiteUser, setMainWebsiteUser] = useState(null);
+  const [userProfileData, setUserProfileData] = useState(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const scrollTimeoutRef = useRef(null);
 
-  // Separate main website user from admin user
-  useEffect(() => {
-    // Check if we're on main website (not admin pages)
-    const isMainWebsite = !location.pathname.startsWith('/admin');
+  // Fetch complete user profile from Firebase
+  const fetchUserProfileData = async (userEmail) => {
+    if (!userEmail) return null;
     
-    if (isMainWebsite && currentUser) {
-      // Only store user if they logged in through main website (not admin panel)
-      // Check if it's a regular user (not admin)
-      const email = currentUser.email?.toLowerCase() || "";
-      const displayName = currentUser.displayName?.toLowerCase() || "";
+    try {
+      setIsLoadingProfile(true);
+      console.log("🔍 Fetching profile for:", userEmail);
       
-      // If it looks like an admin user (has admin@exclusivetrader.com), don't show in main website
-      if (email.includes('admin@exclusivetrader.com') || 
-          displayName.includes('system administrator') ||
-          displayName.includes('admin')) {
-        // This is an admin user, don't show in main website
-        setMainWebsiteUser(null);
-      } else {
-        // This is a regular main website user
-        setMainWebsiteUser(currentUser);
+      const usersRef = ref(db, 'users');
+      const snapshot = await get(usersRef);
+      
+      if (snapshot.exists()) {
+        const usersData = snapshot.val();
+        
+        // Find user by email (case-insensitive)
+        const userId = Object.keys(usersData).find(key => {
+          const user = usersData[key];
+          return user.email && user.email.toLowerCase() === userEmail.toLowerCase();
+        });
+        
+        if (userId) {
+          const userData = usersData[userId];
+          console.log("✅ Found user data:", userData);
+          setUserProfileData(userData);
+          return userData;
+        } else {
+          console.log("❌ User not found in Firebase");
+        }
       }
-    } else {
-      setMainWebsiteUser(null);
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+    } finally {
+      setIsLoadingProfile(false);
     }
+    return null;
+  };
+
+  // Separate main website user from admin user and fetch profile
+  useEffect(() => {
+    const processCurrentUser = async () => {
+      // Check if we're on main website (not admin pages)
+      const isMainWebsite = !location.pathname.startsWith('/admin');
+      
+      if (isMainWebsite && currentUser && currentUser.email) {
+        // Only store user if they logged in through main website (not admin panel)
+        const email = currentUser.email.toLowerCase();
+        const displayName = currentUser.displayName?.toLowerCase() || "";
+        
+        // If it looks like an admin user, don't show in main website
+        if (email.includes('admin@exclusivetrader.com') || 
+            displayName.includes('system administrator') ||
+            displayName.includes('admin')) {
+          setMainWebsiteUser(null);
+          setUserProfileData(null);
+        } else {
+          // This is a regular main website user - fetch complete profile
+          setMainWebsiteUser(currentUser);
+          
+          // Fetch detailed profile from Firebase
+          const profileData = await fetchUserProfileData(email);
+          
+          if (!profileData) {
+            // If no profile found in Firebase, use currentUser data
+            // Try to get additional data from localStorage
+            const storedUser = localStorage.getItem('current_user');
+            if (storedUser) {
+              try {
+                const parsedUser = JSON.parse(storedUser);
+                // Merge currentUser with stored data
+                const mergedUser = {
+                  ...currentUser,
+                  phone: parsedUser.phone || currentUser.phoneNumber,
+                  phoneNumber: parsedUser.phoneNumber || currentUser.phoneNumber,
+                  country: parsedUser.country || currentUser.country,
+                  state: parsedUser.state || currentUser.state,
+                  city: parsedUser.city || currentUser.city,
+                  pincode: parsedUser.pincode || currentUser.pincode,
+                  fullName: parsedUser.fullName || currentUser.displayName
+                };
+                setMainWebsiteUser(mergedUser);
+              } catch (e) {
+                console.error("Error parsing stored user:", e);
+              }
+            }
+          }
+        }
+      } else {
+        setMainWebsiteUser(null);
+        setUserProfileData(null);
+        
+        // Check localStorage for guest user data
+        const storedUser = localStorage.getItem('current_user');
+        if (storedUser && !currentUser) {
+          try {
+            const parsedUser = JSON.parse(storedUser);
+            if (parsedUser && !parsedUser.isGuest) {
+              // This is a signed up user - fetch their profile
+              if (parsedUser.email) {
+                const profileData = await fetchUserProfileData(parsedUser.email);
+                if (profileData) {
+                  setMainWebsiteUser(profileData);
+                }
+              }
+            }
+          } catch (e) {
+            console.error("Error parsing stored user:", e);
+          }
+        }
+      }
+    };
+
+    processCurrentUser();
   }, [currentUser, location.pathname]);
+
+  // Also fetch profile when location changes (user might have just signed up)
+  useEffect(() => {
+    if (mainWebsiteUser && mainWebsiteUser.email && !userProfileData) {
+      fetchUserProfileData(mainWebsiteUser.email);
+    }
+  }, [location.pathname, mainWebsiteUser]);
 
   // Check if user is logged in to MAIN WEBSITE (not admin panel)
   const isMainWebsiteLoggedIn = !!mainWebsiteUser;
@@ -82,7 +181,7 @@ const Header = ({
     if (path === '/services') return 'services';
     if (path === '/about') return 'about';
     if (path === '/industries') return 'industries';
-    if (path === '/quote-request') return 'quote-request';
+    if (path === '/Feedback') return 'Feedback';
     if (path === '/blog') return 'blog';
     if (path === '/join-us') return 'join-us';
     if (path === '/contact') return 'contact';
@@ -114,7 +213,7 @@ const Header = ({
     setActiveSection(currentPage);
   }, [location.pathname]);
 
-  // Handle scroll detection ONLY on home page
+  // Handle scroll detection ONLY on home page - WITHOUT BLOG AND JOIN US
   useEffect(() => {
     const isHomePage = location.pathname === '/' || location.pathname === '/home';
     
@@ -132,15 +231,14 @@ const Header = ({
         const windowHeight = window.innerHeight;
         const headerHeight = 100;
         
+        // Only sections that exist in home page
         const possibleSectionIds = [
           'home',
-          'services',
           'about',
+          'services',
           'industries',
           'leadership',
-          'blog',
-          'join-us',
-          'quote-request',
+          'Feedback',
           'contact'
         ];
         
@@ -231,8 +329,11 @@ const Header = ({
     onSignOut();
     setShowProfileDropdown(false);
     toggleMobileMenu(false);
-    // Also clear main website user
+    // Also clear main website user and profile data
     setMainWebsiteUser(null);
+    setUserProfileData(null);
+    // Clear localStorage for current_user
+    localStorage.removeItem('current_user');
     // Redirect to home after sign out
     navigate('/');
   };
@@ -245,35 +346,11 @@ const Header = ({
 
   const handleNavClick = (page, e) => {
     if (e) e.preventDefault();
-    
-    const currentPage = getCurrentPageFromPath();
-    
-    setActiveSection(page);
-    
-    if (page === 'home' && currentPage === 'home') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      toggleMobileMenu(false);
-      return;
-    }
-    
-    if (currentPage === 'home' && (location.pathname === '/' || location.pathname === '/home')) {
-      const sectionElement = document.getElementById(page);
-      
-      if (sectionElement) {
-        const headerHeight = 100;
-        window.scrollTo({
-          top: sectionElement.offsetTop - headerHeight,
-          behavior: 'smooth'
-        });
-        toggleMobileMenu(false);
-        return;
-      }
-    }
-    
-    if (currentPage !== page || !document.getElementById(page)) {
-      navigateToPage(page);
-      toggleMobileMenu(false);
-    }
+
+    toggleMobileMenu(false);
+
+    // Always navigate
+    navigate(`/${page}`);
   };
 
   const isActivePage = (page) => {
@@ -308,15 +385,106 @@ const Header = ({
 
   const getUserInitials = () => {
     if (!mainWebsiteUser) return "US";
-    if (mainWebsiteUser.displayName) {
-      return mainWebsiteUser.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    
+    // Try multiple sources for name
+    const fullName = getMainUserFullName();
+    if (fullName && fullName.trim()) {
+      return fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     }
+    
     return mainWebsiteUser.email?.substring(0, 2).toUpperCase() || "US";
   };
 
   const getUserDisplayName = () => {
     if (!mainWebsiteUser) return "";
-    return mainWebsiteUser.displayName || mainWebsiteUser.email?.split('@')[0] || "User";
+    
+    // Try multiple sources for name
+    const fullName = getMainUserFullName();
+    if (fullName && fullName.trim()) {
+      return fullName;
+    }
+    
+    return mainWebsiteUser.email?.split('@')[0] || "User";
+  };
+
+  // Get full name from multiple possible sources
+  const getMainUserFullName = () => {
+    if (!mainWebsiteUser) return "";
+    
+    // Check multiple possible fields
+    return mainWebsiteUser.fullName || 
+           mainWebsiteUser.displayName || 
+           mainWebsiteUser.name || 
+           "";
+  };
+
+  // Get email from multiple possible sources
+  const getMainUserEmail = () => {
+    if (!mainWebsiteUser) return "";
+    return mainWebsiteUser.email || "";
+  };
+
+  // Get phone from multiple possible sources
+  const getMainUserPhone = () => {
+    if (!mainWebsiteUser) return "";
+    
+    // Check multiple phone number fields
+    if (mainWebsiteUser.phone) {
+      return mainWebsiteUser.phone;
+    }
+    
+    if (mainWebsiteUser.phoneNumber) {
+      if (typeof mainWebsiteUser.phoneNumber === 'string') {
+        return mainWebsiteUser.phoneNumber;
+      } else if (mainWebsiteUser.phoneNumber.fullNumber) {
+        return mainWebsiteUser.phoneNumber.fullNumber;
+      } else if (mainWebsiteUser.phoneNumber.number) {
+        const countryCode = mainWebsiteUser.phoneNumber.countryCode || '+91';
+        return `${countryCode} ${mainWebsiteUser.phoneNumber.number}`;
+      }
+    }
+    
+    // Check in address or other fields
+    if (mainWebsiteUser.address && mainWebsiteUser.address.phone) {
+      return mainWebsiteUser.address.phone;
+    }
+    
+    return "";
+  };
+
+  // Get country from multiple possible sources
+  const getMainUserCountry = () => {
+    if (!mainWebsiteUser) return "";
+    
+    // Check multiple country fields
+    if (mainWebsiteUser.country) {
+      return mainWebsiteUser.country;
+    }
+    
+    if (mainWebsiteUser.address && mainWebsiteUser.address.country) {
+      return mainWebsiteUser.address.country;
+    }
+    
+    // Check if we have a country code that we can map
+    if (mainWebsiteUser.phoneNumber && mainWebsiteUser.phoneNumber.countryCode) {
+      const countryCode = mainWebsiteUser.phoneNumber.countryCode;
+      const countryMap = {
+        '+91': 'India',
+        '+1': 'United States',
+        '+44': 'United Kingdom',
+        '+971': 'UAE',
+        '+61': 'Australia',
+        '+968': 'Oman',
+        '+49': 'Germany',
+        '+33': 'France',
+        '+65': 'Singapore',
+        '+81': 'Japan',
+        '+86': 'China'
+      };
+      return countryMap[countryCode] || "";
+    }
+    
+    return "";
   };
 
   // Get user role - only for main website users
@@ -337,23 +505,23 @@ const Header = ({
 
   // Get user details for display
   const getUserFullName = () => {
-    if (!mainWebsiteUser) return "";
-    return mainWebsiteUser.displayName || "";
+    const fullName = getMainUserFullName();
+    return fullName || "Not provided";
   };
 
   const getUserEmail = () => {
-    if (!mainWebsiteUser) return "";
-    return mainWebsiteUser.email || "";
+    const email = getMainUserEmail();
+    return email || "Not provided";
   };
 
   const getUserPhone = () => {
-    if (!mainWebsiteUser) return "";
-    return mainWebsiteUser.phoneNumber || "";
+    const phone = getMainUserPhone();
+    return phone || "Not provided";
   };
 
   const getUserCountry = () => {
-    if (!mainWebsiteUser) return "";
-    return mainWebsiteUser.country || "";
+    const country = getMainUserCountry();
+    return country || "Not provided";
   };
 
   return (
@@ -393,6 +561,7 @@ const Header = ({
           <nav className="hidden lg:flex items-center gap-2">
             {!isMobileView && (
               <>
+                {/* YOUR REQUESTED ORDER: Home, About, Services, Industries, Leadership, Blog, Join Us, Feedback, Contact */}
                 <Link 
                   to="/home" 
                   className={`font-medium px-3 py-2 rounded-lg transition-all duration-200 text-sm ${isActivePage("home")}`} 
@@ -443,9 +612,9 @@ const Header = ({
                   Join Us
                 </Link>
                 <Link 
-                  to="/quote-request" 
-                  className={`font-medium px-3 py-2 rounded-lg transition-all duration-200 text-sm ${isActivePage("quote-request")}`} 
-                  onClick={(e) => handleNavClick("quote-request", e)}
+                  to="/Feedback" 
+                  className={`font-medium px-3 py-2 rounded-lg transition-all duration-200 text-sm ${isActivePage("Feedback")}`} 
+                  onClick={(e) => handleNavClick("Feedback", e)}
                 >
                   Feedback
                 </Link>
@@ -460,8 +629,15 @@ const Header = ({
             )}
           </nav>
 
+          {/* Show loading spinner when fetching profile */}
+          {isLoadingProfile && !isMobileView && (
+            <div className="w-8 h-8 flex items-center justify-center">
+              <i className="fas fa-spinner fa-spin text-secondary text-sm"></i>
+            </div>
+          )}
+
           {/* Show profile avatar when logged in to MAIN WEBSITE */}
-          {isMainWebsiteLoggedIn && !isMobileView && (
+          {isMainWebsiteLoggedIn && !isMobileView && !isLoadingProfile && (
             <div className="profile-dropdown">
               <div
                 className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-secondary rounded-full flex items-center justify-center text-dark font-bold text-sm cursor-pointer flex-shrink-0"
@@ -530,6 +706,7 @@ const Header = ({
           <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => toggleMobileMenu(false)}></div>
           <nav className="absolute top-0 left-0 right-0 bg-primary/95 backdrop-blur-sm border-t border-secondary shadow-neon max-h-[85vh] overflow-y-auto">
             <ul className="flex flex-col items-center gap-0 px-4 py-4">
+              {/* YOUR REQUESTED ORDER: Home, About, Services, Industries, Leadership, Blog, Join Us, Feedback, Contact */}
               <li className="w-full">
                 <Link 
                   to="/home" 
@@ -595,9 +772,9 @@ const Header = ({
               </li>
               <li className="w-full">
                 <Link 
-                  to="/quote-request" 
-                  className={`font-medium block py-3 px-4 rounded-lg transition-all duration-200 text-base ${isMobileActivePage("quote-request")}`} 
-                  onClick={(e) => { handleNavClick("quote-request", e); toggleMobileMenu(false); }}
+                  to="/Feedback" 
+                  className={`font-medium block py-3 px-4 rounded-lg transition-all duration-200 text-base ${isMobileActivePage("Feedback")}`} 
+                  onClick={(e) => { handleNavClick("Feedback", e); toggleMobileMenu(false); }}
                 >
                   Feedback
                 </Link>
@@ -613,74 +790,81 @@ const Header = ({
               </li>
 
               {/* Profile section for MAIN WEBSITE users only */}
-              {isMainWebsiteLoggedIn && (
+              {isMainWebsiteLoggedIn ? (
                 <li className="w-full pt-5 mt-4 border-t border-gray-700">
-                  <div className="px-4 py-4 bg-secondary/10 rounded-lg mb-4">
-                    <div className="flex items-center justify-center gap-3">
-                      <div className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center text-dark font-bold text-lg">
-                        {getUserInitials()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-secondary text-base truncate">
-                          {getUserRole()}
-                        </p>
-                        <p className="text-sm text-gray-300 truncate mt-1">
-                          {getUserEmail() || "No email"}
-                        </p>
-                      </div>
+                  {isLoadingProfile ? (
+                    <div className="px-4 py-4 flex items-center justify-center">
+                      <i className="fas fa-spinner fa-spin text-secondary text-lg mr-2"></i>
+                      <span className="text-light">Loading profile...</span>
                     </div>
-                  </div>
-                  
-                  {/* ACCOUNT INFORMATION Section */}
-                  <div className="mb-4 px-2">
-                    <div className="bg-primary/50 border border-secondary/30 rounded-lg p-4">
-                      <h3 className="text-secondary font-bold text-base mb-4">ACCOUNT INFORMATION</h3>
+                  ) : (
+                    <>
+                      <div className="px-4 py-4 bg-secondary/10 rounded-lg mb-4">
+                        <div className="flex items-center justify-center gap-3">
+                          <div className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center text-dark font-bold text-lg">
+                            {getUserInitials()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-secondary text-base truncate">
+                              {getUserRole()}
+                            </p>
+                            <p className="text-sm text-gray-300 truncate mt-1">
+                              {getUserEmail() || "No email"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                       
-                      <div className="space-y-2">
-                        <div className="flex items-start">
-                          <span className="text-sm text-gray-400 min-w-24">Full Name:</span>
-                          <span className="text-light font-medium ml-2">
-                            {getUserFullName() || "Not provided"}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-start">
-                          <span className="text-sm text-gray-400 min-w-24">Email:</span>
-                          <span className="text-light font-medium ml-2">
-                            {getUserEmail() || "Not provided"}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-start">
-                          <span className="text-sm text-gray-400 min-w-24">Phone:</span>
-                          <span className="text-light font-medium ml-2">
-                            {getUserPhone() || "Not provided"}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-start">
-                          <span className="text-sm text-gray-400 min-w-24">Country:</span>
-                          <span className="text-light font-medium ml-2">
-                            {getUserCountry() || "Not provided"}
-                          </span>
+                      {/* ACCOUNT INFORMATION Section */}
+                      <div className="mb-4 px-2">
+                        <div className="bg-primary/50 border border-secondary/30 rounded-lg p-4">
+                          <h3 className="text-secondary font-bold text-base mb-4">ACCOUNT INFORMATION</h3>
+                          
+                          <div className="space-y-2">
+                            <div className="flex items-start">
+                              <span className="text-sm text-gray-400 min-w-24">Full Name:</span>
+                              <span className="text-light font-medium ml-2">
+                                {getUserFullName()}
+                              </span>
+                            </div>
+                            
+                            <div className="flex items-start">
+                              <span className="text-sm text-gray-400 min-w-24">Email:</span>
+                              <span className="text-light font-medium ml-2">
+                                {getUserEmail()}
+                              </span>
+                            </div>
+                            
+                            <div className="flex items-start">
+                              <span className="text-sm text-gray-400 min-w-24">Phone:</span>
+                              <span className="text-light font-medium ml-2">
+                                {getUserPhone()}
+                              </span>
+                            </div>
+                            
+                            <div className="flex items-start">
+                              <span className="text-sm text-gray-400 min-w-24">Country:</span>
+                              <span className="text-light font-medium ml-2">
+                                {getUserCountry()}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                  
-                  {/* Sign Out Button */}
-                  <a 
-                    href="#signout" 
-                    onClick={handleSignOutClick} 
-                    className="font-medium hover:text-red-400 transition-colors block py-3 px-4 rounded-lg text-center border border-red-500 hover:bg-red-500/10 transition-all duration-200 text-base"
-                  >
-                    Sign Out
-                  </a>
+                      
+                      {/* Sign Out Button */}
+                      <a 
+                        href="#signout" 
+                        onClick={handleSignOutClick} 
+                        className="font-medium hover:text-red-400 transition-colors block py-3 px-4 rounded-lg text-center border border-red-500 hover:bg-red-500/10 transition-all duration-200 text-base"
+                      >
+                        Sign Out
+                      </a>
+                    </>
+                  )}
                 </li>
-              )}
-
-              {/* Show Sign In/Sign Up when NOT logged in to MAIN WEBSITE */}
-              {!isMainWebsiteLoggedIn && (
+              ) : (
+                /* Show Sign In/Sign Up when NOT logged in to MAIN WEBSITE */
                 <li className="w-full pt-5 mt-4 border-t border-gray-700">
                   <div className="flex flex-col gap-3">
                     <Link 
@@ -706,7 +890,7 @@ const Header = ({
       )}
 
       {/* Profile dropdown for MAIN WEBSITE users on desktop */}
-      {isMainWebsiteLoggedIn && showProfileDropdown && !isMobileView && (
+      {isMainWebsiteLoggedIn && showProfileDropdown && !isMobileView && !isLoadingProfile && (
         <div className="fixed top-16 sm:top-18 md:top-20 right-4 sm:right-6 md:right-8 z-50 profile-dropdown">
           <div className="w-56 sm:w-64 md:w-72 bg-primary/95 backdrop-blur-sm border border-secondary rounded-lg shadow-neon">
             <div className="py-1">
@@ -727,28 +911,28 @@ const Header = ({
                   <div className="flex items-start">
                     <span className="text-xs text-gray-400 min-w-20">Full Name:</span>
                     <span className="text-light font-medium text-sm ml-2">
-                      {getUserFullName() || "Not provided"}
+                      {getUserFullName()}
                     </span>
                   </div>
                   
                   <div className="flex items-start">
                     <span className="text-xs text-gray-400 min-w-20">Email:</span>
                     <span className="text-light font-medium text-sm ml-2">
-                      {getUserEmail() || "Not provided"}
+                      {getUserEmail()}
                     </span>
                   </div>
                   
                   <div className="flex items-start">
                     <span className="text-xs text-gray-400 min-w-20">Phone:</span>
                     <span className="text-light font-medium text-sm ml-2">
-                      {getUserPhone() || "Not provided"}
+                      {getUserPhone()}
                     </span>
                   </div>
                   
                   <div className="flex items-start">
                     <span className="text-xs text-gray-400 min-w-20">Country:</span>
                     <span className="text-light font-medium text-sm ml-2">
-                      {getUserCountry() || "Not provided"}
+                      {getUserCountry()}
                     </span>
                   </div>
                 </div>

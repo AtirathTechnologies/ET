@@ -2,7 +2,7 @@
 import React from 'react';
 import himayatImg from '../assets/Hymat.png';
 import chandarImg from '../assets/Chander.png';
-import jahnaviImg from '../assets/Jahnavi.png';
+
 
 const Leadership = () => {
   const leaders = [
@@ -18,12 +18,7 @@ const Leadership = () => {
       image: chandarImg,
       bio: "He brings expertise in real estate, agriculture, IT, and supply chain management. Having worked with international partners across MENA and USA markets, he plays a key role in driving operational excellence, building partnerships, and expanding Exclusive Trader's global presence."
     },
-    {
-      name: "Ms. P. Jahnavi",
-      position: "IT Head",
-      image: jahnaviImg,
-      bio: "Jahnavi leads our technology initiatives with expertise in system architecture, cybersecurity, digital transformation, data analytics, cloud infrastructure, and IT project management. She ensures our technological infrastructure supports global trade operations efficiently and securely."
-    }
+   
   ];
 
   return (

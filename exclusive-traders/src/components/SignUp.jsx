@@ -10,12 +10,20 @@ const SignUp = ({ navigateToPage }) => {
   const [displayName, setDisplayName] = useState("");
   const [countryCode, setCountryCode] = useState("+91");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [country, setCountry] = useState("United Kingdom");
+  const [state, setState] = useState("");
+  const [city, setCity] = useState("");
+  const [pincode, setPincode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [activeField, setActiveField] = useState("displayName"); // Track which field is active
 
   // Refs for each input field
   const displayNameRef = useRef(null);
+  const countryRef = useRef(null);
+  const stateRef = useRef(null);
+  const cityRef = useRef(null);
+  const pincodeRef = useRef(null);
   const phoneNumberRef = useRef(null);
   const emailRef = useRef(null);
   const passwordRef = useRef(null);
@@ -30,6 +38,23 @@ const SignUp = ({ navigateToPage }) => {
     { value: "+971", flag: "🇦🇪", name: "UAE", length: 9 },
     { value: "+61", flag: "🇦🇺", name: "Australia", length: 9 },
     { value: "+98", flag: "🇮🇷", name: "Iran", length: 10 },
+  ];
+
+  // Country dropdown options from the image
+  const countryDropdownOptions = [
+    "India",
+    "Oman",
+    "United Kingdom",
+    "United States",
+    "UAE",
+    "Australia",
+    "Canada",
+    "Germany",
+    "France",
+    "Singapore",
+    "Japan",
+    "China",
+    "Other"
   ];
 
   useEffect(() => {
@@ -63,11 +88,51 @@ const SignUp = ({ navigateToPage }) => {
     }
   };
 
+  // Handle pincode change
+  const handlePincodeChange = (e) => {
+    const value = e.target.value;
+    if (/^\d*$/.test(value) && value.length <= 10) {
+      setPincode(value);
+    }
+  };
+
+  // Handle country change and update country code
+  const handleCountryChange = (selectedCountry) => {
+    setCountry(selectedCountry);
+    
+    // Auto-select country code based on country name
+    if (selectedCountry === "India") setCountryCode("+91");
+    else if (selectedCountry === "United States") setCountryCode("+1");
+    else if (selectedCountry === "United Kingdom") setCountryCode("+44");
+    else if (selectedCountry === "UAE") setCountryCode("+971");
+    else if (selectedCountry === "Australia") setCountryCode("+61");
+    else if (selectedCountry === "Canada") setCountryCode("+1");
+    else if (selectedCountry === "Oman") setCountryCode("+968");
+    else if (selectedCountry === "Germany") setCountryCode("+49");
+    else if (selectedCountry === "France") setCountryCode("+33");
+    else if (selectedCountry === "Singapore") setCountryCode("+65");
+    else if (selectedCountry === "Japan") setCountryCode("+81");
+    else if (selectedCountry === "China") setCountryCode("+86");
+    else if (selectedCountry === "Other") setCountryCode("+1"); // Default for "Other"
+  };
+
   // Handle Enter key press to move to next field
   const handleKeyDown = (e, nextField) => {
     if (e.key === 'Enter') {
       e.preventDefault(); // Prevent form submission
-      if (nextField === 'phoneNumber') {
+      if (nextField === 'country') {
+        countryRef.current.focus();
+        setActiveField('country');
+      } else if (nextField === 'state') {
+        stateRef.current.focus();
+        setActiveField('state');
+      } else if (nextField === 'city') {
+        cityRef.current.focus();
+        setActiveField('city');
+      } else if (nextField === 'pincode') {
+        pincodeRef.current.focus();
+        setActiveField('pincode');
+      } else if (nextField === 'phoneNumber') {
         phoneNumberRef.current.focus();
         setActiveField('phoneNumber');
       } else if (nextField === 'email') {
@@ -109,6 +174,31 @@ const SignUp = ({ navigateToPage }) => {
         throw new Error("Password must be at least 6 characters");
       }
 
+      // Validate country selection
+      if (!country || country === "Select Country") {
+        throw new Error("Please select your country");
+      }
+
+      // Validate state/province
+      if (!state.trim()) {
+        throw new Error("Please enter your state or province");
+      }
+
+      // Validate city/town
+      if (!city.trim()) {
+        throw new Error("Please enter your city or town");
+      }
+
+      // Validate pincode/ZIP code
+      if (!pincode.trim()) {
+        throw new Error("Please enter your pincode or ZIP code");
+      }
+
+      // Validate pincode length (4-10 digits)
+      if (pincode.length < 4 || pincode.length > 10) {
+        throw new Error("Pincode/ZIP code must be 4-10 digits");
+      }
+
       // Get current country's required length
       const requiredLength = getCurrentCountryLength();
       
@@ -147,11 +237,21 @@ const SignUp = ({ navigateToPage }) => {
         password: password, // Store password for verification on signin
         displayName: displayName.trim(),
         fullName: displayName.trim(), // Add fullName field for BuyModal
+        country: country,
+        state: state.trim(),
+        city: city.trim(),
+        pincode: pincode.trim(),
         phone: fullPhone, // Store as string for BuyModal compatibility
         phoneNumber: {
           countryCode,
           number: phoneNumber,
           fullNumber: fullPhone
+        },
+        address: {
+          country,
+          state: state.trim(),
+          city: city.trim(),
+          pincode: pincode.trim()
         },
         role: "user",
         isAdmin: false,
@@ -173,6 +273,10 @@ const SignUp = ({ navigateToPage }) => {
         email: normalizedEmail,
         displayName: displayName.trim(),
         fullName: displayName.trim(),
+        country: country,
+        state: state.trim(),
+        city: city.trim(),
+        pincode: pincode.trim(),
         phone: fullPhone,
         isGuest: false
       }));
@@ -199,6 +303,13 @@ const SignUp = ({ navigateToPage }) => {
   const isFormValid = () => {
     return (
       displayName.trim() &&
+      country &&
+      country !== "Select Country" &&
+      state.trim() &&
+      city.trim() &&
+      pincode.trim() &&
+      pincode.length >= 4 &&
+      pincode.length <= 10 &&
       email &&
       email.includes("@") &&
       password.length >= 6 &&
@@ -238,7 +349,7 @@ const SignUp = ({ navigateToPage }) => {
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              onKeyDown={(e) => handleKeyDown(e, 'phoneNumber')}
+              onKeyDown={(e) => handleKeyDown(e, 'country')}
               onFocus={() => handleFocus('displayName')}
               className={`w-full px-3 py-2 bg-dark border rounded-lg text-light focus:outline-none transition-colors text-sm ${
                 activeField === 'displayName' ? 'border-secondary' : 'border-gray-600'
@@ -251,6 +362,119 @@ const SignUp = ({ navigateToPage }) => {
             <div className="mt-1 text-xs text-light/70 flex justify-between">
               <span>Press Enter to go to next field</span>
               <span>{displayName.trim() ? '✓' : ''}</span>
+            </div>
+          </div>
+
+          {/* Country Dropdown */}
+          <div className="mb-3">
+            <label className="block text-light mb-1 font-medium text-sm">Country *</label>
+            <div className="relative">
+              <select
+                ref={countryRef}
+                value={country}
+                onChange={(e) => handleCountryChange(e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, 'state')}
+                onFocus={() => handleFocus('country')}
+                className={`w-full px-3 py-2 bg-dark border rounded-lg text-light focus:outline-none appearance-none cursor-pointer text-sm ${
+                  activeField === 'country' ? 'border-secondary' : 'border-gray-600'
+                }`}
+                required
+                disabled={loading}
+              >
+                <option value="Select Country" className="bg-dark text-gray-500">
+                  Select Country
+                </option>
+                {countryDropdownOptions.map((countryOption) => (
+                  <option 
+                    key={countryOption} 
+                    value={countryOption} 
+                    className="bg-dark text-light"
+                  >
+                    {countryOption}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                <i className="fas fa-chevron-down text-gray-400 text-xs"></i>
+              </div>
+            </div>
+            <div className="mt-1 text-xs text-light/70 flex justify-between">
+              <span>Select your country from the list</span>
+              <span>{country && country !== "Select Country" ? '✓' : ''}</span>
+            </div>
+          </div>
+
+          {/* State/Province */}
+          <div className="mb-3">
+            <label className="block text-light mb-1 font-medium text-sm">State/Province *</label>
+            <input
+              ref={stateRef}
+              type="text"
+              value={state}
+              onChange={(e) => setState(e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, 'city')}
+              onFocus={() => handleFocus('state')}
+              className={`w-full px-3 py-2 bg-dark border rounded-lg text-light focus:outline-none transition-colors text-sm ${
+                activeField === 'state' ? 'border-secondary' : 'border-gray-600'
+              }`}
+              placeholder="Enter your state or province"
+              required
+              disabled={loading}
+              autoComplete="address-level1"
+            />
+            <div className="mt-1 text-xs text-light/70 flex justify-between">
+              <span>Current: {state.trim() ? state : 'Not set'}</span>
+              <span>{state.trim() ? '✓' : ''}</span>
+            </div>
+          </div>
+
+          {/* City/Town */}
+          <div className="mb-3">
+            <label className="block text-light mb-1 font-medium text-sm">City/Town *</label>
+            <input
+              ref={cityRef}
+              type="text"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, 'pincode')}
+              onFocus={() => handleFocus('city')}
+              className={`w-full px-3 py-2 bg-dark border rounded-lg text-light focus:outline-none transition-colors text-sm ${
+                activeField === 'city' ? 'border-secondary' : 'border-gray-600'
+              }`}
+              placeholder="Enter your city or town"
+              required
+              disabled={loading}
+              autoComplete="address-level2"
+            />
+            <div className="mt-1 text-xs text-light/70 flex justify-between">
+              <span>Current: {city.trim() ? city : 'Not set'}</span>
+              <span>{city.trim() ? '✓' : ''}</span>
+            </div>
+          </div>
+
+          {/* Pincode/ZIP Code */}
+          <div className="mb-3">
+            <label className="block text-light mb-1 font-medium text-sm">Pincode/ZIP Code *</label>
+            <input
+              ref={pincodeRef}
+              type="text"
+              value={pincode}
+              onChange={handlePincodeChange}
+              onKeyDown={(e) => handleKeyDown(e, 'phoneNumber')}
+              onFocus={() => handleFocus('pincode')}
+              className={`w-full px-3 py-2 bg-dark border rounded-lg text-light focus:outline-none transition-colors text-sm ${
+                activeField === 'pincode' ? 'border-secondary' : 'border-gray-600'
+              }`}
+              placeholder="Enter your pincode or ZIP code"
+              required
+              minLength={4}
+              maxLength={10}
+              disabled={loading}
+              autoComplete="postal-code"
+            />
+            <div className="mt-1 text-xs text-light/70 flex justify-between">
+              <span>Must be 4-10 digits. Current: {pincode.trim() ? pincode : 'Not set'}</span>
+              <span>{pincode.length >= 4 && pincode.length <= 10 ? '✓' : ''}</span>
             </div>
           </div>
 

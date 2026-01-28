@@ -16,7 +16,7 @@ import Services from './components/Services';
 import About from './components/About';
 import Industries from './components/Industries';
 import Innovation from './components/Innovation';
-import QuoteRequest from './components/QuoteRequest';
+import Feedback from './components/Feedback';
 import Footer from './components/Footer';
 import SignIn from './components/SignIn';
 import SignUp from './components/SignUp';
@@ -37,7 +37,7 @@ import AdminProducts from './components/Admin/AdminProducts';
 import AdminOrders from './components/Admin/AdminOrders';
 import AdminUsers from './components/Admin/AdminUsers';
 import AdminHistory from './components/Admin/AdminHistory';
-import AdminLayout from './components/Admin/Adminlayout'; 
+import AdminLayout from './components/Admin/Adminlayout';
 import ProtectedAdminRoute from './components/Admin/ProtectedAdminRoute';
 
 // ---------- Placeholder pages ----------
@@ -69,7 +69,7 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showInnovationPage, setShowInnovationPage] = useState(false);
   const [authLoading, setAuthLoading] = useState(true); // ADD: Loading state
-  
+
   // States for Buy Modal
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -101,7 +101,7 @@ function App() {
   useEffect(() => {
     setIsMounted(true);
     setAuthLoading(true);
-    
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setCurrentUser(user);
@@ -119,7 +119,7 @@ function App() {
       }
       setAuthLoading(false); // Auth check complete
     });
-    
+
     return () => unsubscribe();
   }, []);
 
@@ -264,7 +264,7 @@ function App() {
       {/* ---- ALL ROUTES ---- */}
       <main className={location.pathname.startsWith('/admin') ? '' : 'pt-4'}>
         <Routes>
-          {/* HOME – ALL SECTIONS WITH SCROLL */}
+          {/* HOME – ALL SECTIONS WITH SCROLL - WITHOUT BLOG AND JOIN US */}
           <Route
             path="/home"
             element={
@@ -290,12 +290,16 @@ function App() {
                   />
                 </div>
                 <div id="leadership"><Leadership /></div>
-                <div id="QuoteRequest"><QuoteRequest /></div>
+                {/* ADDED: Feedback section in home page */}
+                <div id="Feedback"><Feedback /></div>
+                {/* ADDED: Contact section in home page */}
+                <div id="contact"><Contactus /></div>
+
               </>
             }
           />
 
-          {/* Individual full-page routes */}
+          {/* Individual full-page routes (for direct navigation) */}
           <Route path="/services" element={<Services />} />
           <Route path="/about" element={<About />} />
           <Route
@@ -309,8 +313,13 @@ function App() {
             }
           />
           <Route path="/leadership" element={<Leadership />} />
-          <Route path="/QuoteRequest" element={<QuoteRequest />} />
-          <Route path="/Contactus" element={<Contactus />} />
+          <Route path="/Feedback" element={<Feedback />} />
+          <Route path="/contact" element={<Contactus />} />
+          
+          {/* Blog and Join Us as separate pages only (NOT in home page) */}
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/:id" element={<BlogPost />} />
+          <Route path="/join-us" element={<JoinUs />} />
 
           {/* Full-page routes */}
           <Route
@@ -351,9 +360,6 @@ function App() {
             path="/signup"
             element={<SignUp navigateToPage={navigateToPage} onAuthSuccess={handleAuthSuccess} />}
           />
-          <Route path="/blog" element={<Blog />} />
-          <Route path="/blog/:id" element={<BlogPost />} />
-          <Route path="/join-us" element={<JoinUs />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/settings" element={<Settings />} />

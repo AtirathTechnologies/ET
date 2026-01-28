@@ -1,7 +1,7 @@
-// src/components/QuoteRequest.jsx
+// src/components/Feedback.jsx
 import { useState } from 'react';
 
-const QuoteRequest = () => {
+const Feedback = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -122,4 +122,4 @@ const QuoteRequest = () => {
   );
 };
 
-export default QuoteRequest;
+export default Feedback;

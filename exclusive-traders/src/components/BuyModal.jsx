@@ -360,6 +360,12 @@ const BuyModal = ({ isOpen, onClose, product, profile, industry }) => {
   const [portPrice, setPortPrice] = useState(0.00);
   const [packingPrice, setPackingPrice] = useState(0.00);
   
+  // New states for user contact details from signup
+  const [userCountry, setUserCountry] = useState("");
+  const [userState, setUserState] = useState("");
+  const [userCity, setUserCity] = useState("");
+  const [userPincode, setUserPincode] = useState("");
+  
   // New states for Countries Port section
   const [selectedCountry, setSelectedCountry] = useState("");
   const [countryPorts, setCountryPorts] = useState([]);
@@ -490,17 +496,46 @@ const BuyModal = ({ isOpen, onClose, product, profile, industry }) => {
     }
   }, [packing, packingOptions]);
 
-  // Prefill form fields with profile data - ENHANCED PHONE PARSING
+  // Prefill form fields with profile data and localStorage data - ENHANCED
   useEffect(() => {
-    if (isOpen && profile) {
-      const nameValue = profile.fullName || profile.displayName || profile.name || "";
-      setFullName(nameValue);
-      setEmail(profile.email || "");
+    if (isOpen) {
+      // First try to get data from localStorage (from signup)
+      const localUser = localStorage.getItem('current_user');
+      let userData = {};
       
-      // Parse phone number from profile
-      if (profile.phone) {
-        // Try different formats
-        const phoneStr = String(profile.phone);
+      if (localUser) {
+        try {
+          userData = JSON.parse(localUser);
+          console.log("📦 User data from localStorage:", userData);
+        } catch (e) {
+          console.error("Error parsing local user data:", e);
+        }
+      }
+      
+      // Use profile data if available, otherwise use localStorage data
+      const nameValue = profile?.fullName || profile?.displayName || profile?.name || userData.fullName || userData.displayName || "";
+      const emailValue = profile?.email || userData.email || "";
+      
+      setFullName(nameValue);
+      setEmail(emailValue);
+      
+      // Set contact details from signup
+      setUserCountry(userData.country || "");
+      setUserState(userData.state || "");
+      setUserCity(userData.city || "");
+      setUserPincode(userData.pincode || "");
+      
+      // Parse phone number (from profile first, then localStorage)
+      let phoneData = null;
+      
+      if (profile?.phone) {
+        phoneData = profile.phone;
+      } else if (userData.phone) {
+        phoneData = userData.phone;
+      }
+      
+      if (phoneData) {
+        const phoneStr = String(phoneData);
         
         // Check if phone is in format "+91 9876543210"
         if (phoneStr.includes(" ")) {
@@ -536,36 +571,12 @@ const BuyModal = ({ isOpen, onClose, product, profile, industry }) => {
         }
       }
       
-      // Also check localStorage for current user data
-      const localUser = localStorage.getItem('current_user');
-      if (localUser && !profile.phone) {
-        try {
-          const parsedUser = JSON.parse(localUser);
-          if (parsedUser.phone) {
-            const phoneStr = String(parsedUser.phone);
-            
-            if (phoneStr.includes(" ")) {
-              const phoneParts = phoneStr.split(" ");
-              if (phoneParts.length > 1) {
-                setCountryCode(phoneParts[0]);
-                setPhoneNumber(phoneParts.slice(1).join(" ").replace(/\D/g, ""));
-              }
-            } else if (phoneStr.startsWith("+")) {
-              const countryOption = countryOptions.find(opt => 
-                phoneStr.startsWith(opt.value)
-              );
-              
-              if (countryOption) {
-                setCountryCode(countryOption.value);
-                const numberPart = phoneStr.substring(countryOption.value.length);
-                setPhoneNumber(numberPart.replace(/\D/g, ""));
-              }
-            }
-          }
-        } catch (e) {
-          console.error("Error parsing local user data:", e);
-        }
-      }
+      console.log("📋 Auto-filled contact details:", {
+        country: userData.country,
+        state: userData.state,
+        city: userData.city,
+        pincode: userData.pincode
+      });
     }
   }, [isOpen, profile]);
 
@@ -821,7 +832,18 @@ const BuyModal = ({ isOpen, onClose, product, profile, industry }) => {
         fullName,
         email,
         phone: fullPhoneNumber,
-        countryCode
+        countryCode,
+        country: userCountry,
+        state: userState,
+        city: userCity,
+        pincode: userPincode,
+        // Include all contact information from signup
+        address: {
+          country: userCountry,
+          state: userState,
+          city: userCity,
+          pincode: userPincode
+        }
       },
       productInfo: {
         industry: industry,
@@ -867,6 +889,7 @@ const BuyModal = ({ isOpen, onClose, product, profile, industry }) => {
 - Name: ${fullName}
 - Email: ${email}
 - Phone: ${fullPhoneNumber}
+- Address: ${userCity}, ${userState}, ${userCountry} - ${userPincode}
 - Industry: ${industry}
 - Product: ${product?.name || ""}
 - Grade: ${grade}${gradePrice ? ` (Price: $${gradePrice})` : ''}
@@ -898,6 +921,7 @@ Thank you!`;
 - Name: ${fullName}
 - Email: ${email}
 - Phone: ${fullPhoneNumber}
+- Address: ${userCity}, ${userState}, ${userCountry} - ${userPincode}
 - Industry: ${industry}
 - Product: ${product?.name || ""}
 - Grade: ${grade}${gradePrice ? ` (Price: $${gradePrice})` : ''}
@@ -946,6 +970,11 @@ Thank you!`;
     setIsSubmitting(false);
     setPortPrice(0.00);
     setPackingPrice(0.00);
+    // Reset user contact details
+    setUserCountry("");
+    setUserState("");
+    setUserCity("");
+    setUserPincode("");
     // Reset new states
     setSelectedCountry("");
     setCountryPorts([]);
@@ -983,102 +1012,213 @@ Thank you!`;
                   handleSubmit();
                 }}
               >
+                {/* Contact Information Section - STYLE FROM IMAGE */}
                 <section className="form-section">
-                  <h3>Contact Information</h3>
-                  <label>
-                    Full Name *
+                  <h3 className="text-xl font-bold mb-6 text-gray-200">Contact Information</h3>
+                  
+                  {/* Full Name */}
+                  <div className="mb-5">
+                    <div className="flex items-center mb-1">
+                      <label className="block text-gray-300 font-medium text-sm">
+                        Full Name <span className="text-accent">*</span>
+                      </label>
+                    </div>
                     <input
                       type="text"
                       placeholder="Enter your full name"
                       value={fullName}
                       onChange={handleFullNameChange}
                       required
-                      className="input-field"
+                      className="w-full px-4 py-3 bg-dark border border-gray-600 rounded-lg text-light focus:outline-none focus:border-secondary transition-colors text-base"
                       readOnly={!!profile}
                       disabled={isSubmitting}
                     />
-                  </label>
-                  <label>
-                    Email Address *
+                  </div>
+
+                  {/* Email Address */}
+                  <div className="mb-5">
+                    <div className="flex items-center mb-1">
+                      <label className="block text-gray-300 font-medium text-sm">
+                        Email Address <span className="text-accent">*</span>
+                      </label>
+                    </div>
                     <input
                       type="email"
-                      placeholder="Enter your email address"
+                      placeholder="your.email@example.com"
                       value={email}
                       onChange={handleEmailChange}
                       required
-                      className="input-field"
+                      className="w-full px-4 py-3 bg-dark border border-gray-600 rounded-lg text-light focus:outline-none focus:border-secondary transition-colors text-base"
                       readOnly={!!profile}
                       disabled={isSubmitting}
                     />
-                    {emailError && <div className="error-text">{emailError}</div>}
-                  </label>
-                  <label>
-                    Phone Number *
-                    <div className="phone-input-group flex w-full gap-2">
-                      <select
-                        ref={countrySelectRef}
-                        value={countryCode}
-                        onChange={handlePhoneCountryChange}
-                        className="country-code-select flex-1 basis-1/4 min-w-[80px] input-field"
-                        style={{ zIndex: 1002, position: 'relative' }}
-                        disabled={isSubmitting}
-                      >
-                        {countryOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.flag} {option.value}
-                          </option>
-                        ))}
-                      </select>
+                    {emailError && <div className="error-text mt-1 text-red-400 text-sm">{emailError}</div>}
+                  </div>
+
+                  {/* Contact Details Grid - Auto-filled from signup */}
+                  <div className="grid grid-cols-2 gap-4 mb-5">
+                    {/* Country */}
+                    <div>
+                      <div className="flex items-center mb-1">
+                        <label className="block text-gray-300 font-medium text-sm">
+                          Country <span className="text-accent">*</span>
+                        </label>
+                      </div>
                       <input
-                        type="tel"
-                        placeholder={`Enter phone number (${getCurrentCountry()?.length || 10} digits)`}
-                        value={phoneNumber}
-                        onChange={handlePhoneChange}
-                        maxLength={getCurrentCountry()?.length || 10}
-                        required
-                        className="input-field flex-1 basis-3/4"
-                        disabled={isSubmitting}
+                        type="text"
+                        value={userCountry || "India"}
+                        readOnly
+                        className="w-full px-4 py-3 bg-dark/70 border border-gray-700 rounded-lg text-light text-base cursor-not-allowed"
                       />
                     </div>
-                    {phoneError && <div className="error-text">{phoneError}</div>}
-                  </label>
+
+                    {/* State/Province */}
+                    <div>
+                      <div className="flex items-center mb-1">
+                        <label className="block text-gray-300 font-medium text-sm">
+                          State/Province <span className="text-accent">*</span>
+                        </label>
+                      </div>
+                      <input
+                        type="text"
+                        value={userState || "Enter your state/province"}
+                        readOnly
+                        className="w-full px-4 py-3 bg-dark/70 border border-gray-700 rounded-lg text-light text-base cursor-not-allowed"
+                      />
+                    </div>
+
+                    {/* City/Town */}
+                    <div>
+                      <div className="flex items-center mb-1">
+                        <label className="block text-gray-300 font-medium text-sm">
+                          City/Town <span className="text-accent">*</span>
+                        </label>
+                      </div>
+                      <input
+                        type="text"
+                        value={userCity || "Enter your city/town"}
+                        readOnly
+                        className="w-full px-4 py-3 bg-dark/70 border border-gray-700 rounded-lg text-light text-base cursor-not-allowed"
+                      />
+                    </div>
+
+                    {/* Pincode/ZIP */}
+                    <div>
+                      <div className="flex items-center mb-1">
+                        <label className="block text-gray-300 font-medium text-sm">
+                          Pincode/ZIP <span className="text-accent">*</span>
+                        </label>
+                      </div>
+                      <input
+                        type="text"
+                        value={userPincode || "Enter your pincode/ZIP"}
+                        readOnly
+                        className="w-full px-4 py-3 bg-dark/70 border border-gray-700 rounded-lg text-light text-base cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Phone Number */}
+                  <div className="mb-5">
+                    <div className="flex items-center mb-1">
+                      <label className="block text-gray-300 font-medium text-sm">
+                        Phone Number <span className="text-accent">*</span>
+                      </label>
+                    </div>
+                    <div className="phone-input-group flex w-full gap-3">
+                      <div className="relative w-32">
+                        <select
+                          ref={countrySelectRef}
+                          value={countryCode}
+                          onChange={handlePhoneCountryChange}
+                          className="w-full px-4 py-3 bg-dark border border-gray-600 rounded-lg text-light focus:outline-none focus:border-secondary appearance-none cursor-pointer text-base"
+                          style={{ zIndex: 1002, position: 'relative' }}
+                          disabled={isSubmitting}
+                        >
+                          {countryOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.flag} {option.value}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                          <i className="fas fa-chevron-down text-gray-400"></i>
+                        </div>
+                      </div>
+                      
+                      <div className="flex-1">
+                        <input
+                          type="tel"
+                          placeholder={countryCode === "+91" ? "IN +91 (India) Phone number (10 digits)" : 
+                                     countryCode === "+1" ? "US +1 Phone number (10 digits)" : 
+                                     countryCode === "+44" ? "UK +44 Phone number (10 digits)" : 
+                                     `Phone number (${getCurrentCountry()?.length || 10} digits)`}
+                          value={phoneNumber}
+                          onChange={handlePhoneChange}
+                          maxLength={getCurrentCountry()?.length || 10}
+                          required
+                          className="w-full px-4 py-3 bg-dark border border-gray-600 rounded-lg text-light focus:outline-none focus:border-secondary transition-colors text-base"
+                          disabled={isSubmitting}
+                        />
+                      </div>
+                    </div>
+                    {phoneError && <div className="error-text mt-1 text-red-400 text-sm">{phoneError}</div>}
+                    <div className="mt-1 text-xs text-gray-400">
+                      {countryCode === "+91" ? "IN +91 (India) Phone number (10 digits)" : 
+                       countryCode === "+1" ? "US +1 Phone number (10 digits)" : 
+                       countryCode === "+44" ? "UK +44 Phone number (10 digits)" : 
+                       `Phone number (${getCurrentCountry()?.length || 10} digits)`}
+                    </div>
+                  </div>
                 </section>
-                <section className="form-section">
-                  <h3>Product Information</h3>
-                  <label>
-                    Industry
+                
+                {/* Product Information Section */}
+                <section className="form-section mt-8">
+                  <h3 className="text-xl font-bold mb-6 text-gray-200">Product Information</h3>
+                  <div className="mb-5">
+                    <label className="block text-gray-300 font-medium text-sm mb-1">
+                      Industry
+                    </label>
                     <input
                       type="text"
                       value={industry || ""}
                       readOnly
-                      className="input-field"
+                      className="w-full px-4 py-3 bg-dark/70 border border-gray-700 rounded-lg text-light text-base cursor-not-allowed"
                     />
-                  </label>
-                  <label>
-                    Category
+                  </div>
+                  <div className="mb-5">
+                    <label className="block text-gray-300 font-medium text-sm mb-1">
+                      Category
+                    </label>
                     <input
                       type="text"
                       value={product?.brand || ""}
                       readOnly
-                      className="input-field"
+                      className="w-full px-4 py-3 bg-dark/70 border border-gray-700 rounded-lg text-light text-base cursor-not-allowed"
                     />
-                  </label>
-                  <label>
-                    Product
+                  </div>
+                  <div className="mb-5">
+                    <label className="block text-gray-300 font-medium text-sm mb-1">
+                      Product
+                    </label>
                     <input
                       type="text"
                       value={product?.name || ""}
                       readOnly
-                      className="input-field"
+                      className="w-full px-4 py-3 bg-dark/70 border border-gray-700 rounded-lg text-light text-base cursor-not-allowed"
                     />
-                  </label>
-                  <label>
-                    Grade *
+                  </div>
+                  <div className="mb-5">
+                    <div className="flex items-center mb-1">
+                      <label className="block text-gray-300 font-medium text-sm">
+                        Grade <span className="text-accent">*</span>
+                      </label>
+                    </div>
                     <select
                       value={grade}
                       onChange={(e) => setGrade(e.target.value)}
                       required
-                      className="select-field"
+                      className="w-full px-4 py-3 bg-dark border border-gray-600 rounded-lg text-light focus:outline-none focus:border-secondary appearance-none cursor-pointer text-base"
                       disabled={isSubmitting}
                     >
                       <option value="">Select Grade</option>
@@ -1092,17 +1232,21 @@ Thank you!`;
                         <option disabled>Loading grades...</option>
                       )}
                     </select>
-                    <small className="text-gray-400">
+                    <small className="text-gray-400 text-xs mt-1 block">
                       {industry === 'Rice' ? 'Specific rice grades based on variety' : 'Industry standard grades'}
                     </small>
-                  </label>
-                  <label>
-                    Packing *
+                  </div>
+                  <div className="mb-5">
+                    <div className="flex items-center mb-1">
+                      <label className="block text-gray-300 font-medium text-sm">
+                        Packing <span className="text-accent">*</span>
+                      </label>
+                    </div>
                     <select
                       value={packing}
                       onChange={handlePackingChange}
                       required
-                      className="select-field"
+                      className="w-full px-4 py-3 bg-dark border border-gray-600 rounded-lg text-light focus:outline-none focus:border-secondary appearance-none cursor-pointer text-base"
                       disabled={isSubmitting}
                     >
                       <option value="">Select Packing</option>
@@ -1112,14 +1256,18 @@ Thank you!`;
                         </option>
                       ))}
                     </select>
-                  </label>
-                  <label>
-                    Quantity *
+                  </div>
+                  <div className="mb-5">
+                    <div className="flex items-center mb-1">
+                      <label className="block text-gray-300 font-medium text-sm">
+                        Quantity <span className="text-accent">*</span>
+                      </label>
+                    </div>
                     <select
                       value={quantity}
                       onChange={handleQuantityChange}
                       required
-                      className="select-field"
+                      className="w-full px-4 py-3 bg-dark border border-gray-600 rounded-lg text-light focus:outline-none focus:border-secondary appearance-none cursor-pointer text-base"
                       disabled={isSubmitting}
                     >
                       <option value="">Select Quantity</option>
@@ -1130,30 +1278,36 @@ Thank you!`;
                       ))}
                     </select>
                     {quantity === "Custom Quantity" && (
-                      <div className="mt-2">
+                      <div className="mt-3">
                         <input
                           type="text"
                           placeholder="Enter your custom quantity (e.g., 150 g, 3 kg, 10 pieces)"
                           value={customQuantity}
                           onChange={(e) => setCustomQuantity(e.target.value)}
-                          className="input-field w-full"
+                          className="w-full px-4 py-3 bg-dark border border-gray-600 rounded-lg text-light focus:outline-none focus:border-secondary text-base"
                           disabled={isSubmitting}
                         />
-                        <small className="text-gray-400">Enter quantity with unit (g, kg, liter, pieces, etc.)</small>
+                        <small className="text-gray-400 text-xs mt-1 block">
+                          Enter quantity with unit (g, kg, liter, pieces, etc.)
+                        </small>
                       </div>
                     )}
-                  </label>
+                  </div>
                   
                   {/* NEW: Countries Port Section */}
-                  <div className="mt-4 mb-4">
-                    <h4 className="font-medium mb-2 text-gray-300">Countries Port</h4>
-                    <label>
-                      Select Country *
+                  <div className="mb-5">
+                    <h4 className="font-bold mb-3 text-gray-300">Countries Port</h4>
+                    <div className="mb-4">
+                      <div className="flex items-center mb-1">
+                        <label className="block text-gray-300 font-medium text-sm">
+                          Select Country <span className="text-accent">*</span>
+                        </label>
+                      </div>
                       <select
                         value={selectedCountry}
                         onChange={handleCountryPortChange}
                         required
-                        className="select-field"
+                        className="w-full px-4 py-3 bg-dark border border-gray-600 rounded-lg text-light focus:outline-none focus:border-secondary appearance-none cursor-pointer text-base"
                         disabled={isSubmitting}
                       >
                         <option value="">Select Country</option>
@@ -1164,16 +1318,20 @@ Thank you!`;
                         <option value="Turkey">Turkey</option>
                         <option value="USA">USA</option>
                       </select>
-                    </label>
+                    </div>
                     
                     {countryPorts.length > 0 && (
-                      <label className="mt-3 block">
-                        Select Port from {selectedCountry} *
+                      <div>
+                        <div className="flex items-center mb-1">
+                          <label className="block text-gray-300 font-medium text-sm">
+                            Select Port from {selectedCountry} <span className="text-accent">*</span>
+                          </label>
+                        </div>
                         <select
                           value={selectedCountryPort}
                           onChange={handleCountryPortSelect}
                           required
-                          className="select-field"
+                          className="w-full px-4 py-3 bg-dark border border-gray-600 rounded-lg text-light focus:outline-none focus:border-secondary appearance-none cursor-pointer text-base"
                           disabled={isSubmitting}
                         >
                           <option value="">Select Port</option>
@@ -1183,20 +1341,24 @@ Thank you!`;
                             </option>
                           ))}
                         </select>
-                        <small className="text-gray-400">
+                        <small className="text-gray-400 text-xs mt-1 block">
                           Randomly selected ports from {selectedCountry}
                         </small>
-                      </label>
+                      </div>
                     )}
                   </div>
                   
-                  <label>
-                    Port of Loading *
+                  <div className="mb-5">
+                    <div className="flex items-center mb-1">
+                      <label className="block text-gray-300 font-medium text-sm">
+                        Port of Loading <span className="text-accent">*</span>
+                      </label>
+                    </div>
                     <select
                       value={port}
                       onChange={(e) => setPort(e.target.value)}
                       required
-                      className="select-field"
+                      className="w-full px-4 py-3 bg-dark border border-gray-600 rounded-lg text-light focus:outline-none focus:border-secondary appearance-none cursor-pointer text-base"
                       disabled={isSubmitting}
                     >
                       <option value="">Select Port</option>
@@ -1208,14 +1370,18 @@ Thank you!`;
                       <option value="Kolkata">Kolkata</option>
                       <option value="Other">Other (Specify in Additional Info)</option>
                     </select>
-                  </label>
-                  <label>
-                    CIF Required? *
+                  </div>
+                  <div className="mb-5">
+                    <div className="flex items-center mb-1">
+                      <label className="block text-gray-300 font-medium text-sm">
+                        CIF Required? <span className="text-accent">*</span>
+                      </label>
+                    </div>
                     <select
                       value={cifRequired}
                       onChange={(e) => setCifRequired(e.target.value)}
                       required
-                      className="select-field"
+                      className="w-full px-4 py-3 bg-dark border border-gray-600 rounded-lg text-light focus:outline-none focus:border-secondary appearance-none cursor-pointer text-base"
                       disabled={isSubmitting}
                     >
                       <option value="">Select Option</option>
@@ -1225,27 +1391,34 @@ Thank you!`;
                         </option>
                       ))}
                     </select>
-                    <small className="text-gray-400">
+                    <small className="text-gray-400 text-xs mt-1 block">
                       CIF includes shipping and insurance costs to your destination port
                     </small>
-                  </label>
-                  <label>
-                    Additional Information
+                  </div>
+                  <div className="mb-6">
+                    <label className="block text-gray-300 font-medium text-sm mb-1">
+                      Additional Information
+                    </label>
                     <textarea
                       placeholder="Any additional details or requirements"
                       value={additionalInfo}
                       onChange={(e) => setAdditionalInfo(e.target.value)}
-                      className="textarea-field"
+                      className="w-full px-4 py-3 bg-dark border border-gray-600 rounded-lg text-light focus:outline-none focus:border-secondary text-base min-h-[100px]"
                       disabled={isSubmitting}
                     />
-                  </label>
+                  </div>
                 </section>
                 <button 
                   type="submit" 
-                  className="submit-btn"
+                  className="w-full bg-secondary text-dark font-bold py-4 rounded-lg hover:bg-accent transition-all duration-300 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? "Submitting..." : "Get Quote"}
+                  {isSubmitting ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <i className="fas fa-spinner fa-spin"></i>
+                      Submitting...
+                    </span>
+                  ) : "Get Quote"}
                 </button>
               </form>
             </div>
