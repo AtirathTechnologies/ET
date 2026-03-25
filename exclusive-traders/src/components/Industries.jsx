@@ -1,69 +1,155 @@
-import React from 'react';
+import React, { useEffect, useState } from "react";
+import { db } from "../firebase";
+import { ref, get } from "firebase/database";
 
-const Industries = ({ showIndustryProducts, currentUser, onViewAllProducts }) => {
-  const industries = [
-    { id: 'Chocolate', name: 'Chocolate', image: 'https://shreejifoods.in/cdn/shop/products/IMG_19032021_095047__500_x_500_pixel.jpg?v=1616404272' },
-    { id: 'Rice', name: 'Rice', image: 'https://articles-1mg.gumlet.io/articles/wp-content/uploads/2017/02/rsz_shutterstock_291146909.jpg?compress=true&quality=80&w=640&dpr=2.6' },
-    { id: 'Perfumes', name: 'Perfumes', image: 'https://www.shutterstock.com/image-photo/mockup-bue-fragrance-perfume-bottle-260nw-1914090385.jpg' },
-    { id: 'Clothes', name: 'Clothes', image: 'https://www.rd.com/wp-content/uploads/2022/08/GettyImages-1395657872-e1660072866664.jpg' },
-    { id: 'Electronics', name: 'Electronics', image: 'https://ecelectronics.com/wp-content/uploads/2020/04/Modern-Electronics-EC-.jpg' },
-    { id: 'Fruits', name: 'Fruits', image: 'https://images.ctfassets.net/prxuf37q3ta2/HKBan6gdluv8p5x3izTGO/2c495a4223d82796f76aab71c1f27af7/1534x864_Small_Fruit_and_veg.jpg?w=1280&q=70&fm=webp' },
-    { id: 'Vegetables', name: 'Vegetables', image: 'https://jbmsmartstart.in/wp-content/uploads/2023/09/vegetable-names.jpg' },
-    { id: 'Spices', name: 'Spices', image: 'https://pureleven.com/cdn/shop/articles/spices-to-boost-immunity.webp?v=1750638090&width=1100' },
-    { id: 'Pulses', name: 'Pulses', image: 'https://media.licdn.com/dms/image/v2/C4E12AQEYXX5FJg6_mg/article-cover_image-shrink_720_1280/article-cover_image-shrink_720_1280/0/1520104330626?e=2147483647&v=beta&t=zBw9n6cv7e4ilmRW8MlfGvZkBdjuReWAXqE77OcfeCI' },
-    { id: 'Dry Fruits', name: 'Dry Fruits', image: 'https://nutribinge.in/cdn/shop/articles/image3.jpg?v=1713258139' },
-    { id: 'Flowers', name: 'Rose', image: 'https://t4.ftcdn.net/jpg/01/88/05/15/360_F_188051555_5Ut1whbPuoV6ntmuifVhBCGOmyyqD3t8.jpg' },
-    { id: 'Oil', name: 'Oil', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTOV0h8ngl5wQ3wftaOJAzaKTAwdbrp4UM6gg&s' },
-    { id: 'Beverages', name: 'Beverages', image: 'https://agronfoodprocessing.com/wp-content/uploads/2023/08/drinks.jpg' },
-    { id: 'Tea', name: 'Tea', image: 'https://domf5oio6qrcr.cloudfront.net/medialibrary/8468/conversions/Tea-thumb.jpg' },
-  ];
+const CACHE_KEY = 'industries_cache';
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const SHOW_ALL_KEY = 'industries_showAll'; // Key for sessionStorage
+
+const Industries = ({ showIndustryProducts }) => {
+  const [industries, setIndustries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  // Initialize showAll from sessionStorage (default false)
+  const [showAll, setShowAll] = useState(() => {
+    const stored = sessionStorage.getItem(SHOW_ALL_KEY);
+    return stored === 'true';
+  });
+
+  useEffect(() => {
+    // Try to load from cache first
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      try {
+        const { data, timestamp } = JSON.parse(cached);
+        if (Date.now() - timestamp < CACHE_TTL) {
+          setIndustries(data);
+          setLoading(false);
+        } else {
+          localStorage.removeItem(CACHE_KEY);
+        }
+      } catch (e) {
+        localStorage.removeItem(CACHE_KEY);
+      }
+    }
+
+    // Always fetch fresh data in background
+    const fetchIndustries = async () => {
+      try {
+        const categoriesRef = ref(db, "categories");
+        const snapshot = await get(categoriesRef);
+
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+
+          const industriesArray = Object.entries(data).map(
+            ([id, category]) => {
+              let imagePath =
+                category.image || "/ProductsImg/All_Products/default-category.jpg";
+              imagePath = imagePath.replace("/img/", "/ProductsImg/");
+
+              return {
+                id,
+                name: category.name || id,
+                image: imagePath,
+              };
+            }
+          );
+
+          setIndustries(industriesArray);
+          setLoading(false);
+
+          // Save to cache
+          localStorage.setItem(CACHE_KEY, JSON.stringify({
+            data: industriesArray,
+            timestamp: Date.now()
+          }));
+        }
+      } catch (error) {
+        console.error("Error fetching industries:", error);
+        setLoading(false);
+      }
+    };
+
+    fetchIndustries();
+  }, []);
 
   const handleIndustryClick = (industryId) => {
-    // Allow everyone to view products without sign-in
-    showIndustryProducts(industryId);
+    if (showIndustryProducts) {
+      showIndustryProducts(industryId);
+    }
   };
 
-  const handleViewAllProducts = () => {
-    // Allow everyone to view all products without sign-in
-    onViewAllProducts();
+  const handleToggleView = () => {
+    const newShowAll = !showAll;
+    setShowAll(newShowAll);
+    // Store the preference in sessionStorage
+    sessionStorage.setItem(SHOW_ALL_KEY, newShowAll.toString());
   };
+
+  // Determine which industries to display – show first 8 initially
+  const displayedIndustries = showAll ? industries : industries.slice(0, 8);
+  const hasMore = industries.length > 8;
+
+  // Skeleton loader – show 8 skeleton items
+  const renderSkeleton = () => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+      {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+        <div key={i} className="animate-pulse">
+          <div className="w-full h-48 bg-gray-700 rounded-lg"></div>
+          <div className="h-6 bg-gray-700 rounded mt-3 mx-auto w-3/4"></div>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <section id="industries" className="py-20 bg-dark">
       <div className="container mx-auto px-4">
-        <div className="section-title text-center mb-12">
-          <h2 className="text-4xl text-secondary mb-4 text-shadow-black">Industries We Transform</h2>
-          <p className="text-gray max-w-2xl mx-auto">
-            Specialized solutions for diverse sectors, powered by cutting-edge technology.
+        <div className="text-center mb-12">
+          <h2 className="text-4xl text-secondary mb-4">
+            Industries We Transform
+          </h2>
+          <p className="text-gray">
+            Specialized solutions for food, beverage, and nutrition industries.
           </p>
         </div>
-       
-        <div className="industries-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
-          {industries.slice(0, 6).map(industry => (
-            <div
-              key={industry.id}
-              className="industry-item cursor-pointer transform transition-transform hover:scale-105"
-              onClick={() => handleIndustryClick(industry.id)}
-            >
-              <img 
-                src={industry.image} 
-                alt={industry.name} 
-                className="w-full h-48 object-cover mb-4 rounded-lg shadow-lg" 
-              />
-              <h3 className="text-xl font-semibold text-center text-white">{industry.name}</h3>
-            </div>
-          ))}
-        </div>
 
-        {/* View All Products Button */}
-        <div className="text-center mt-12">
-          <button
-            onClick={handleViewAllProducts}
-            className="bg-primary hover:bg-primary-dark text-white font-bold py-3 px-8 rounded-lg transition-colors duration-300 shadow-lg hover:shadow-xl"
-          >
-            View All Products
-          </button>
-        </div>
+        {loading ? renderSkeleton() : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+              {displayedIndustries.map((industry) => (
+                <div
+                  key={industry.id}
+                  className="industry-item cursor-pointer hover:scale-105 transition"
+                  onClick={() => handleIndustryClick(industry.id)}
+                >
+                  <img
+                    src={industry.image}
+                    alt={industry.name}
+                    className="w-full h-48 object-cover rounded-lg shadow-lg"
+                    onError={(e) => {
+                      e.target.src = "/ProductsImg/All_Products/default-category.jpg";
+                    }}
+                  />
+                  <h3 className="text-xl text-center text-white mt-3">
+                    {industry.name}
+                  </h3>
+                </div>
+              ))}
+            </div>
+
+            {hasMore && (
+              <div className="text-center mt-12">
+                <button
+                  onClick={handleToggleView}
+                  className="bg-primary text-white px-8 py-3 rounded-lg hover:bg-primary-dark transition"
+                >
+                  {showAll ? "Show Less" : "View All Products"}
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </section>
   );

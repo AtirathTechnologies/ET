@@ -1,19 +1,30 @@
 // src/components/BlogPost.jsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import img1 from '../assets/BlogPost/Blog1.webp'
+import img2 from '../assets/BlogPost/Blog2.webp'
+import img3 from '../assets/BlogPost/Blog3.webp'
+import img4 from '../assets/BlogPost/Blog4.webp'
+import img5 from '../assets/BlogPost/Blog5.webp'
+import img6 from '../assets/BlogPost/Blog6.webp'
+import img7 from '../assets/BlogPost/Blog7.webp'
+import img8 from '../assets/BlogPost/Blog8.webp'
+
 
 const BlogPost = () => {
   const { id } = useParams();
+
+  // Scroll to top when component mounts or ID changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
 
   const blogPosts = [
     {
       id: 1,
       title: "Global Rice Trade 2024: Navigating New Market Dynamics",
       excerpt: "Explore the evolving landscape of international rice trade with insights on emerging markets, pricing trends, and supply chain innovations.",
-      category: "Grains & Cereals",
-      image: "https://etimg.etb2bimg.com/photo/107855000.cms",
-      // readTime: "5 min read",
-      // publishDate: "March 15, 2024",
+      image: img1,
       fullContent: `
         <h2 class="text-2xl font-bold text-secondary mb-4">The Changing Face of Global Rice Markets</h2>
         <p class="mb-4 text-light">The global rice trade is undergoing significant transformation in 2024, driven by changing consumption patterns, climate impacts, and geopolitical shifts. As one of the world's leading rice exporters, we're at the forefront of these developments.</p>
@@ -48,10 +59,7 @@ const BlogPost = () => {
       id: 2,
       title: "Wheat Import Strategies for European Markets",
       excerpt: "Master the complexities of wheat import regulations, quality standards, and logistics for successful European market entry.",
-      category: "Grains & Cereals",
-      image: "https://www.desmud.org/uploads/9d8e3b3a7c9447ff686bc1e0e9058f87.jpg",
-      // readTime: "4 min read",
-      // publishDate: "March 12, 2024",
+      image: img2,
       fullContent: `
         <h2 class="text-2xl font-bold text-secondary mb-4">Navigating European Wheat Import Regulations</h2>
         <p class="mb-4 text-light">Importing wheat into European markets requires careful planning and strict adherence to complex regulatory frameworks. Here's what you need to know for successful market entry in 2024.</p>
@@ -85,10 +93,7 @@ const BlogPost = () => {
       id: 3,
       title: "Sustainable Coffee Sourcing: From Farm to Global Markets",
       excerpt: "Discover how ethical sourcing and sustainable practices are reshaping the global coffee trade landscape.",
-      category: "Beverages",
-      image: "https://www.iisd.org/ssi/wp-content/uploads/2019/07/coffee-header-1024x683-1.jpg",
-      // readTime: "6 min read",
-      // publishDate: "March 10, 2024",
+      image: img3,
       fullContent: `
         <h2 class="text-2xl font-bold text-secondary mb-4">The New Era of Coffee Trading</h2>
         <p class="mb-4 text-light">Coffee trading is evolving beyond simple commodity transactions to embrace sustainability, traceability, and quality differentiation. Here's how the industry is transforming.</p>
@@ -122,10 +127,7 @@ const BlogPost = () => {
       id: 4,
       title: "Spice Export Opportunities in Middle Eastern Markets",
       excerpt: "Learn how to capitalize on the growing demand for premium spices in GCC countries and beyond.",
-      category: "Spices",
-      image: "https://media.istockphoto.com/id/532239993/photo/spices-in-the-spice-souk-in-dubai.jpg?s=612x612&w=0&k=20&c=TaEW_D8YyNI7XLlYCETeXD5yWP2slyUT4cofMn8mmSw=",
-      // readTime: "5 min read",
-      // publishDate: "March 8, 2024",
+      image: img4,
       fullContent: `
         <h2 class="text-2xl font-bold text-secondary mb-4">Expanding Spice Exports to the Middle East</h2>
         <p class="mb-4 text-light">The Middle Eastern spice market offers significant opportunities for exporters who understand regional preferences, quality standards, and business practices.</p>
@@ -159,10 +161,7 @@ const BlogPost = () => {
       id: 5,
       title: "Nut Export Regulations and Market Access Strategies",
       excerpt: "Navigate the complex world of nut exports with our comprehensive guide to regulations, certifications, and market entry.",
-      category: "Nuts & Dry Fruits",
-      image: "https://cdn.momex.ae/momex-storage/static/blog_images/Nuts_and_Food_Export_A_Comprehensive_Guide_for_the_International_Market_momex_74ff6.webp",
-      // readTime: "7 min read",
-      // publishDate: "March 5, 2024",
+      image: img5,
       fullContent: `
         <h2 class="text-2xl font-bold text-secondary mb-4">Mastering Nut Export Compliance</h2>
         <p class="mb-4 text-light">Exporting nuts requires careful attention to international regulations, food safety standards, and market-specific requirements. Here's your roadmap to successful nut exports.</p>
@@ -196,10 +195,7 @@ const BlogPost = () => {
       id: 6,
       title: "Pulse Trading: Opportunities in Emerging Markets",
       excerpt: "Discover the growing demand for pulses in developing economies and how to build sustainable export relationships.",
-      category: "Pulses",
-      image: "https://media.istockphoto.com/id/1143901429/photo/finance-investment-stock-market-chart-graph-currency-exchange-global-business-fintech.jpg?s=612x612&w=0&k=20&c=Gxi0YYjQiE2kCZL5y9hU2LCQshUl5mVsJsYWjj5ckFQ=",
-      // readTime: "4 min read",
-      // publishDate: "March 3, 2024",
+      image: img6,
       fullContent: `
         <h2 class="text-2xl font-bold text-secondary mb-4">The Pulse Revolution in Global Trade</h2>
         <p class="mb-4 text-light">Pulses are gaining prominence in international trade as nutritional awareness grows and developing economies seek affordable protein sources.</p>
@@ -235,10 +231,7 @@ const BlogPost = () => {
       id: 7,
       title: "Tea Export Dynamics: Traditional Markets vs Emerging Opportunities",
       excerpt: "Analyze the shifting patterns in global tea trade and identify new growth markets for premium tea exports.",
-      category: "Beverages",
-      image: "https://i0.wp.com/elmarspices.com/wp-content/uploads/2023/03/tea2.jpg?resize=640%2C397&ssl=1",
-      // readTime: "5 min read",
-      // publishDate: "March 1, 2024",
+      image: img7,
       fullContent: `
         <h2 class="text-2xl font-bold text-secondary mb-4">Transforming Tea Trade for Modern Markets</h2>
         <p class="mb-4 text-light">The global tea industry is experiencing significant transformation as traditional markets evolve and new opportunities emerge in unexpected regions.</p>
@@ -274,10 +267,7 @@ const BlogPost = () => {
       id: 8,
       title: "Sugar Trading in Volatile Markets: Risk Management Strategies",
       excerpt: "Learn how to navigate price volatility and supply chain challenges in the global sugar trade.",
-      category: "Sweeteners",
-      image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSFvgaCxLt6d1jCubTN6okL3pFMscFUcCKUKjFnEpnchQJABF4bBtlH-Ayu1xUaEfOoSKw&usqp=CAU",
-      // readTime: "6 min read",
-      // publishDate: "February 28, 2024",
+      image: img8,
       fullContent: `
         <h2 class="text-2xl font-bold text-secondary mb-4">Mastering Sugar Market Volatility</h2>
         <p class="mb-4 text-light">Sugar trading requires sophisticated risk management strategies to navigate the commodity's inherent price volatility and supply chain complexities.</p>
@@ -335,19 +325,10 @@ const BlogPost = () => {
               alt={post.title}
               className="w-full h-96 object-cover"
             />
-            <div className="absolute top-4 left-4">
-              <span className="bg-secondary text-dark px-3 py-1 rounded-full text-sm font-semibold">
-                {post.category}
-              </span>
-            </div>
+            
           </div>
           
           <div className="mb-6">
-            <div className="flex items-center gap-4 text-sm text-gray-300 mb-4">
-              <span className="text-accent">{post.publishDate}</span>
-              <span>•</span>
-              <span>{post.readTime}</span>
-            </div>
             
             {/* Main Title - Now properly part of the scrollable content */}
             <div className="sticky top-0 bg-dark bg-opacity-90 backdrop-blur-sm py-4 z-10 -mx-8 px-8 border-b border-gray-700 mb-6">

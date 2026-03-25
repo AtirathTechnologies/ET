@@ -4,7 +4,7 @@ import { fetchAllUsers } from '../../firebase';
 
 const AdminUsers = () => {
   const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // initially false
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -92,6 +92,7 @@ const AdminUsers = () => {
   }, [searchTerm, users]);
 
   const fetchUsers = async () => {
+    setLoading(true);
     try {
       const data = await fetchAllUsers();
       setUsers(data);
@@ -226,17 +227,6 @@ const AdminUsers = () => {
     setShowDetails(false);
     setSelectedUser(null);
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-[#00F5C8] p-4">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-10 sm:h-12 border-t-2 border-b-2 border-[#00F5C8] mx-auto mb-3 sm:mb-4"></div>
-          <p className="text-gray-400 text-sm sm:text-base">Loading users...</p>
-        </div>
-      </div>
-    );
-  }
 
   // Get responsive text size classes based on device
   const getTextSizeClass = (type = 'body') => {
@@ -440,7 +430,7 @@ const AdminUsers = () => {
                     <td colSpan={6} className={`${
                       isIpadPro ? 'p-4' : 'p-6 sm:p-8'
                     } text-center text-gray-500`}>
-                      {searchTerm ? 'No users match your search' : 'No users found'}
+                      {loading ? 'Loading users...' : (searchTerm ? 'No users match your search' : 'No users found')}
                     </td>
                   </tr>
                 )}
@@ -509,7 +499,7 @@ const AdminUsers = () => {
                 {filteredUsers.length === 0 && (
                   <tr>
                     <td colSpan="5" className="p-6 text-center text-gray-500">
-                      {searchTerm ? 'No users match your search' : 'No users found'}
+                      {loading ? 'Loading users...' : (searchTerm ? 'No users match your search' : 'No users found')}
                     </td>
                   </tr>
                 )}
@@ -523,7 +513,7 @@ const AdminUsers = () => {
           <div className="p-3 sm:p-4 space-y-3">
             {filteredUsers.length === 0 ? (
               <div className="py-6 sm:py-8 text-center text-gray-500">
-                {searchTerm ? 'No users match your search' : 'No users found'}
+                {loading ? 'Loading users...' : (searchTerm ? 'No users match your search' : 'No users found')}
               </div>
             ) : (
               filteredUsers.map((user, index) => {
@@ -588,7 +578,7 @@ const AdminUsers = () => {
           <div className="p-2 space-y-2">
             {filteredUsers.length === 0 ? (
               <div className="py-4 text-center text-gray-500 text-xs">
-                {searchTerm ? 'No users match your search' : 'No users found'}
+                {loading ? 'Loading users...' : (searchTerm ? 'No users match your search' : 'No users found')}
               </div>
             ) : (
               filteredUsers.map((user, index) => {

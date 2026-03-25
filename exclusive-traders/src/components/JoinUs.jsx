@@ -15,8 +15,8 @@ const JoinUs = () => {
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
   // WhatsApp phone number (replace with your actual business number)
-  const whatsappNumber = '1234567890'; // Replace with your actual WhatsApp business number
-  const whatsappCountryCode = '1'; // Replace with your country code
+  const whatsappNumber = ' 97037 44571'; // Replace with your actual WhatsApp business number
+  const whatsappCountryCode = '91'; // Replace with your country code
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -280,7 +280,7 @@ const JoinUs = () => {
             </div>
             
             <div className="mt-6 text-center pt-4">
-              <button className="btn bg-secondary text-dark hover:bg-accent w-full max-w-xs mx-auto">
+              <button className="text-2xl text-secondary mb-2 text-shadow-black">
                 Apply as Supplier
               </button>
             </div>
@@ -325,67 +325,12 @@ const JoinUs = () => {
             </div>
             
             <div className="mt-6 text-center pt-4">
-              <button className="btn bg-secondary text-dark hover:bg-accent w-full max-w-xs mx-auto">
+              <button className="text-2xl text-secondary mb-4 text-shadow-black">
                 Join as Buyer
               </button>
             </div>
           </div>
         </div>
-
-        {/* Career Opportunities - Equal Height Cards */}
-        <div className="innovation-feature-card p-8 mb-16">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-secondary mb-4">Career Opportunities</h2>
-            <p className="text-gray-300 max-w-2xl mx-auto">
-              Join our team of international trade experts and grow your career in global commerce
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Trade Specialists */}
-            <div className="bg-white/5 rounded-lg p-6 text-center flex flex-col h-full">
-              <i className="fas fa-chart-line text-3xl text-secondary mb-4"></i>
-              <h3 className="text-xl font-semibold text-light mb-3">Trade Specialists</h3>
-              <p className="text-gray-300 text-sm mb-4 flex-grow">
-                Experts in international trade regulations, customs, and market analysis
-              </p>
-              <div className="mt-auto pt-4">
-                <button className="text-secondary hover:text-accent text-sm font-medium">
-                  View Positions →
-                </button>
-              </div>
-            </div>
-            
-            {/* Logistics Coordinators */}
-            <div className="bg-white/5 rounded-lg p-6 text-center flex flex-col h-full">
-              <i className="fas fa-globe text-3xl text-secondary mb-4"></i>
-              <h3 className="text-xl font-semibold text-light mb-3">Logistics Coordinators</h3>
-              <p className="text-gray-300 text-sm mb-4 flex-grow">
-                Manage global shipping, customs clearance, and supply chain operations
-              </p>
-              <div className="mt-auto pt-4">
-                <button className="text-secondary hover:text-accent text-sm font-medium">
-                  View Positions →
-                </button>
-              </div>
-            </div>
-            
-            {/* Client Relations */}
-            <div className="bg-white/5 rounded-lg p-6 text-center flex flex-col h-full">
-              <i className="fas fa-users text-3xl text-secondary mb-4"></i>
-              <h3 className="text-xl font-semibold text-light mb-3">Client Relations</h3>
-              <p className="text-gray-300 text-sm mb-4 flex-grow">
-                Build and maintain relationships with international clients and partners
-              </p>
-              <div className="mt-auto pt-4">
-                <button className="text-secondary hover:text-accent text-sm font-medium">
-                  View Positions →
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Contact Form */}
         <div className="innovation-feature-card p-8">
           <div className="text-center mb-8">

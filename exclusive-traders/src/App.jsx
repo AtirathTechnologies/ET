@@ -8,7 +8,7 @@ import {
   Navigate,
   Outlet,
 } from 'react-router-dom';
-import { auth } from './firebase';
+import { auth, getUserProfile } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import Header from './components/Header';
 import Hero from './components/Hero';
@@ -20,6 +20,7 @@ import Feedback from './components/Feedback';
 import Footer from './components/Footer';
 import SignIn from './components/SignIn';
 import SignUp from './components/SignUp';
+import ForgotPassword from './components/ForgotPassword';
 import useAnimation from './hooks/useAnimation';
 import Products from './components/Products';
 import AllProductsPage from './components/AllProductsPage';
@@ -30,6 +31,11 @@ import BlogPost from './components/BlogPost';
 import Leadership from './components/Leadership';
 import Contactus from './components/Contactus';
 import BuyModal from './components/BuyModal';
+import EditProfile from './components/EditProfile';
+import TransportPage from './components/TransportPage';  // <-- IMPORT
+
+// ---------- Import CartProvider ----------
+import { CartProvider } from './components/CartContext';
 
 // ---------- Admin Components ----------
 import AdminDashboard from './components/Admin/AdminDashboard';
@@ -68,7 +74,7 @@ function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showInnovationPage, setShowInnovationPage] = useState(false);
-  const [authLoading, setAuthLoading] = useState(true); // ADD: Loading state
+  const [authLoading, setAuthLoading] = useState(true);
 
   // States for Buy Modal
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
@@ -102,22 +108,30 @@ function App() {
     setIsMounted(true);
     setAuthLoading(true);
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        setCurrentUser(user);
-        localStorage.setItem(
-          'currentUser',
-          JSON.stringify({
+        try {
+          // Fetch full user profile from database
+          const profileData = await getUserProfile(user.uid);
+          const fullUser = {
             uid: user.uid,
             email: user.email,
             displayName: user.displayName,
-          })
-        );
+            ...profileData
+          };
+
+          setCurrentUser(fullUser);
+          localStorage.setItem('currentUser', JSON.stringify(fullUser));
+          console.log("👤 User Profile Synced:", fullUser.email);
+        } catch (error) {
+          console.error("❌ Error syncing profile:", error);
+          setCurrentUser(user);
+        }
       } else {
         setCurrentUser(null);
         localStorage.removeItem('currentUser');
       }
-      setAuthLoading(false); // Auth check complete
+      setAuthLoading(false);
     });
 
     return () => unsubscribe();
@@ -125,6 +139,8 @@ function App() {
 
   // Reset search when not on product pages
   useEffect(() => {
+    window.scrollTo(0, 0);   // 👈 ADD THIS LINE
+
     const path = location.pathname;
     if (!path.startsWith('/products') && !path.startsWith('/admin')) {
       setSearchTerm('');
@@ -150,17 +166,23 @@ function App() {
     setIsSidebarOpen(false);
   };
 
+  // Updated showIndustryProducts function
   const showIndustryProducts = (industry) => {
+    // First update the current industry state
+    setCurrentIndustry(industry);
+
+    // Then navigate to the products page
     const industrySlug = industry.toLowerCase().replace(/\s+/g, '-');
-    navigate(`/products/${industrySlug}`);
+    navigate(`/products/category/${industrySlug}`);
     setShowInnovationPage(false);
     setSearchTerm('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
     setIsMobileMenuOpen(false);
   };
 
+  // Updated showAllProducts function
   const showAllProducts = () => {
-    navigate('/all-products');
+    navigate('/products');
     setShowInnovationPage(false);
     setSearchTerm('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -168,7 +190,7 @@ function App() {
   };
 
   const goBackToAllProducts = () => {
-    navigate('/all-products');
+    navigate('/products');
     setShowInnovationPage(false);
     setSearchTerm('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -246,233 +268,264 @@ function App() {
   }
 
   return (
-    <div className="App font-inter">
-      {/* Header - Don't show on admin pages */}
-      {!location.pathname.startsWith('/admin') && (
-        <Header
-          navigateToPage={navigateToPage}
-          currentPage={location.pathname.slice(1) || 'home'}
-          searchTerm={searchTerm}
-          onSearchChange={handleSearchChange}
-          currentUser={currentUser}
-          onSignOut={handleSignOut}
-          isMobileMenuOpen={isMobileMenuOpen}
-          toggleMobileMenu={toggleMobileMenu}
-        />
-      )}
-
-      {/* ---- ALL ROUTES ---- */}
-      <main className={location.pathname.startsWith('/admin') ? '' : 'pt-4'}>
-        <Routes>
-          {/* HOME – ALL SECTIONS WITH SCROLL - WITHOUT BLOG AND JOIN US */}
-          <Route
-            path="/home"
-            element={
-              <>
-                {/* HERO FIRST – NO STICKY RSS ON TOP */}
-                <div id="hero">
-                  <Hero showInnovation={showInnovation} />
-                </div>
-
-                {/* RSS FEED AFTER HERO – NORMAL FLOW, NO STICKY */}
-                <div className="relative z-20 bg-black/80">
-                  <BasmatiRSSFeed />
-                </div>
-
-                {/* Rest of your sections */}
-                <div id="about"><About /></div>
-                <div id="services"><Services /></div>
-                <div id="industries">
-                  <Industries
-                    showIndustryProducts={showIndustryProducts}
-                    currentUser={currentUser}
-                    onViewAllProducts={showAllProducts}
-                  />
-                </div>
-                <div id="leadership"><Leadership /></div>
-                {/* ADDED: Feedback section in home page */}
-                <div id="Feedback"><Feedback /></div>
-                {/* ADDED: Contact section in home page */}
-                <div id="contact"><Contactus /></div>
-
-              </>
-            }
+    <CartProvider>
+      <div className="App font-inter">
+        {/* Header - Don't show on admin pages */}
+        {!location.pathname.startsWith('/admin') && (
+          <Header
+            navigateToPage={navigateToPage}
+            currentPage={location.pathname.slice(1) || 'home'}
+            searchTerm={searchTerm}
+            onSearchChange={handleSearchChange}
+            currentUser={currentUser}
+            onSignOut={handleSignOut}
+            isMobileMenuOpen={isMobileMenuOpen}
+            toggleMobileMenu={toggleMobileMenu}
           />
+        )}
 
-          {/* Individual full-page routes (for direct navigation) */}
-          <Route path="/services" element={<Services />} />
-          <Route path="/about" element={<About />} />
-          <Route
-            path="/industries"
-            element={
-              <Industries
-                showIndustryProducts={showIndustryProducts}
-                currentUser={currentUser}
-                onViewAllProducts={showAllProducts}
-              />
-            }
-          />
-          <Route path="/leadership" element={<Leadership />} />
-          <Route path="/Feedback" element={<Feedback />} />
-          <Route path="/contact" element={<Contactus />} />
-          
-          {/* Blog and Join Us as separate pages only (NOT in home page) */}
-          <Route path="/blog" element={<Blog />} />
-          <Route path="/blog/:id" element={<BlogPost />} />
-          <Route path="/join-us" element={<JoinUs />} />
+        {/* ---- ALL ROUTES ---- */}
+        <main className={location.pathname.startsWith('/admin') ? '' : 'pt-4'}>
+          <Routes>
+            {/* HOME – ALL SECTIONS WITH SCROLL */}
+            <Route
+              path="/home"
+              element={
+                <>
+                  <div id="hero">
+                    <Hero showInnovation={showInnovation} />
+                  </div>
+                  <div className="relative z-20 bg-black/80">
+                    <BasmatiRSSFeed />
+                  </div>
+                  <div id="about"><About /></div>
+                  <div id="services"><Services /></div>
+                  <div id="industries">
+                    <Industries
+                      showIndustryProducts={showIndustryProducts}
+                      currentUser={currentUser}
+                      onViewAllProducts={showAllProducts}
+                    />
+                  </div>
+                  <div id="leadership"><Leadership /></div>
+                  <div id="Feedback"><Feedback /></div>
+                  <div id="contact"><Contactus /></div>
+                </>
+              }
+            />
 
-          {/* Full-page routes */}
-          <Route
-            path="/innovation"
-            element={<Innovation onBackToHome={() => navigate('/home')} />}
-          />
-          {/* Updated Products route with parameter */}
-          <Route
-            path="/products/:industry"
-            element={
-              <Products
-                goBackToProducts={goBackToAllProducts}
-                searchTerm={searchTerm}
-                currentUser={currentUser}
-                onAuthRequired={handleAuthRequired}
-                isSidebarOpen={isSidebarOpen}
-                toggleSidebar={toggleSidebar}
-                onBuyClick={openBuyModal}
-              />
-            }
-          />
-          <Route
-            path="/all-products"
-            element={
-              <AllProductsPage
-                showIndustryProducts={showIndustryProducts}
-                currentUser={currentUser}
-                onBackToIndustries={goBackToIndustries}
-                onBuyClick={openBuyModal}
-              />
-            }
-          />
-          <Route
-            path="/signin"
-            element={<SignIn navigateToPage={navigateToPage} onAuthSuccess={handleAuthSuccess} />}
-          />
-          <Route
-            path="/signup"
-            element={<SignUp navigateToPage={navigateToPage} onAuthSuccess={handleAuthSuccess} />}
-          />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/orders" element={<Orders />} />
-          <Route path="/settings" element={<Settings />} />
-
-          {/* ========== ADMIN ROUTES ========== */}
-          <Route
-            path="/admin"
-            element={
-              <ProtectedAdminRoute currentUser={currentUser} authLoading={authLoading}>
-                <AdminLayout
+            {/* Individual full-page routes */}
+            <Route path="/services" element={<Services />} />
+            <Route path="/about" element={<About />} />
+            <Route
+              path="/industries"
+              element={
+                <Industries
+                  showIndustryProducts={showIndustryProducts}
                   currentUser={currentUser}
-                  onSignOut={handleSignOut}
-                  toggleMobileMenu={toggleMobileMenu}
+                  onViewAllProducts={showAllProducts}
                 />
-              </ProtectedAdminRoute>
-            }
-          >
-            {/* The Outlet in AdminLayout will render these child routes */}
-            <Route index element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="dashboard" element={<AdminDashboard />} />
-            <Route path="products" element={<AdminProducts />} />
-            <Route path="orders" element={<AdminOrders />} />
-            <Route path="users" element={<AdminUsers />} />
-            <Route path="history" element={<AdminHistory />} />
-          </Route>
+              }
+            />
+            <Route path="/leadership" element={<Leadership />} />
+            <Route path="/Feedback" element={<Feedback />} />
+            <Route path="/contact" element={<Contactus />} />
 
-          {/* Default redirect */}
-          <Route path="*" element={<Navigate to="/home" replace />} />
-        </Routes>
-      </main>
+            {/* Blog and Join Us */}
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/blog/:id" element={<BlogPost />} />
+            <Route path="/join-us" element={<JoinUs />} />
 
-      {/* Single Footer instance - Don't show on admin pages */}
-      {!location.pathname.startsWith('/admin') && <Footer />}
+            {/* Innovation */}
+            <Route
+              path="/innovation"
+              element={<Innovation onBackToHome={() => navigate('/home')} />}
+            />
 
-      {/* Buy Modal Component */}
-      <BuyModal
-        isOpen={isBuyModalOpen}
-        onClose={closeBuyModal}
-        product={selectedProduct}
-        profile={currentUser}
-        industry={selectedIndustry}
-      />
+            {/* Transport Page */}
+            <Route path="/transport" element={<TransportPage />} />  {/* <-- NEW ROUTE */}
 
-      {/* Auth Modal */}
-      {showAuthModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[1000] p-4">
-          <div className="bg-dark border border-secondary rounded-lg p-6 max-w-md w-full mx-auto">
-            <div className="text-center">
-              <h3 className="text-2xl text-secondary mb-4 text-shadow-neon font-inter">
-                Authentication Required
-              </h3>
-              <p className="text-light mb-6 font-inter">
-                Please sign in or create an account to{' '}
-                {authAction === 'addToCart' ? 'add items to your cart' : 'place an order'}.
-              </p>
-              <div className="flex flex-col gap-3">
+            {/* Products routes */}
+            <Route
+              path="/products"
+              element={
+                <Products
+                  profile={currentUser}
+                  globalSearchQuery={searchTerm}
+                />
+              }
+            />
+            <Route
+              path="/products/category/:categoryId"
+              element={
+                <Products
+                  profile={currentUser}
+                  globalSearchQuery={searchTerm}
+                />
+              }
+            />
+            <Route
+              path="/products/company/:companyId"
+              element={
+                <Products
+                  profile={currentUser}
+                  globalSearchQuery={searchTerm}
+                />
+              }
+            />
+            <Route
+              path="/products/brand/:brandId"
+              element={
+                <Products
+                  profile={currentUser}
+                  globalSearchQuery={searchTerm}
+                />
+              }
+            />
+
+            {/* All Products page */}
+            <Route
+              path="/all-products"
+              element={
+                <AllProductsPage
+                  showIndustryProducts={showIndustryProducts}
+                  currentUser={currentUser}
+                  onBackToIndustries={goBackToIndustries}
+                  onBuyClick={openBuyModal}
+                />
+              }
+            />
+
+            {/* Authentication routes */}
+            <Route
+              path="/signin"
+              element={<SignIn navigateToPage={navigateToPage} onAuthSuccess={handleAuthSuccess} />}
+            />
+            <Route
+              path="/signup"
+              element={<SignUp navigateToPage={navigateToPage} onAuthSuccess={handleAuthSuccess} />}
+            />
+            <Route
+              path="/forgot-password"
+              element={<ForgotPassword navigateToPage={navigateToPage} />}
+            />
+
+            {/* User pages */}
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/orders" element={<Orders />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/edit-profile" element={<EditProfile />} />
+
+            {/* ========== ADMIN ROUTES ========== */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedAdminRoute currentUser={currentUser} authLoading={authLoading}>
+                  <AdminLayout
+                    currentUser={currentUser}
+                    onSignOut={handleSignOut}
+                    toggleMobileMenu={toggleMobileMenu}
+                  />
+                </ProtectedAdminRoute>
+              }
+            >
+              <Route index element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="dashboard" element={<AdminDashboard />} />
+              <Route path="products" element={<AdminProducts />} />
+              <Route path="orders" element={<AdminOrders />} />
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="history" element={<AdminHistory />} />
+            </Route>
+
+            {/* Default redirect */}
+            <Route path="/" element={<Navigate to="/home" replace />} />
+            <Route path="*" element={<Navigate to="/home" replace />} />
+          </Routes>
+        </main>
+
+        {/* Footer */}
+        {!location.pathname.startsWith('/admin') && <Footer />}
+
+        {/* Buy Modal */}
+        <BuyModal
+          isOpen={isBuyModalOpen}
+          onClose={closeBuyModal}
+          product={selectedProduct}
+          profile={currentUser}
+          industry={selectedIndustry}
+        />
+
+        {/* Auth Modal */}
+        {showAuthModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[1000] p-4">
+            <div className="bg-dark border border-secondary rounded-lg p-6 max-w-md w-full mx-auto">
+              <div className="text-center">
+                <h3 className="text-2xl text-secondary mb-4 text-shadow-neon font-inter">
+                  Authentication Required
+                </h3>
+                <p className="text-light mb-6 font-inter">
+                  Please sign in or create an account to{' '}
+                  {authAction === 'addToCart' ? 'add items to your cart' : 'place an order'}.
+                </p>
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={() => {
+                      closeAuthModal();
+                      navigateToPage('signin');
+                    }}
+                    className="btn bg-secondary text-dark hover:bg-accent hover:text-dark py-3 text-lg font-inter font-semibold"
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    onClick={() => {
+                      closeAuthModal();
+                      navigateToPage('signup');
+                    }}
+                    className="btn bg-accent text-dark hover:bg-secondary hover:text-dark py-3 text-lg font-inter font-semibold"
+                  >
+                    Create Account
+                  </button>
+                  <button
+                    onClick={closeAuthModal}
+                    className="btn bg-gray-500 text-light hover:bg-gray-600 py-3 text-lg font-inter font-semibold"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Sign-out toast */}
+        {showSignOutSuccess && (
+          <div className="fixed top-4 right-4 z-[1000] animate-fade-in">
+            <div className="bg-white/10 backdrop-blur-sm border border-secondary rounded-lg p-4 shadow-neon max-w-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-secondary rounded-full flex items-center justify-center flex-shrink-0">
+                  <i className="fas fa-check text-dark text-sm"></i>
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-light font-inter">
+                    Signed Out Successfully!
+                  </p>
+                  <p className="text-gray-100 text-sm opacity-90 font-inter">
+                    You have been logged out of your account.
+                  </p>
+                </div>
                 <button
-                  onClick={() => {
-                    closeAuthModal();
-                    navigateToPage('signin');
-                  }}
-                  className="btn bg-secondary text-dark hover:bg-accent hover:text-dark py-3 text-lg font-inter font-semibold"
+                  onClick={closeSignOutSuccess}
+                  className="text-light hover:text-secondary transition-colors flex-shrink-0"
                 >
-                  Sign In
-                </button>
-                <button
-                  onClick={() => {
-                    closeAuthModal();
-                    navigateToPage('signup');
-                  }}
-                  className="btn bg-accent text-dark hover:bg-secondary hover:text-dark py-3 text-lg font-inter font-semibold"
-                >
-                  Create Account
-                </button>
-                <button
-                  onClick={closeAuthModal}
-                  className="btn bg-gray-500 text-light hover:bg-gray-600 py-3 text-lg font-inter font-semibold"
-                >
-                  Cancel
+                  <i className="fas fa-times"></i>
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Sign-out toast */}
-      {showSignOutSuccess && (
-        <div className="fixed top-4 right-4 z-[1000] animate-fade-in">
-          <div className="bg-white/10 backdrop-blur-sm border border-secondary rounded-lg p-4 shadow-neon max-w-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-secondary rounded-full flex items-center justify-center flex-shrink-0">
-                <i className="fas fa-check text-dark text-sm"></i>
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold text-light font-inter">
-                  Signed Out Successfully!
-                </p>
-                <p className="text-gray-100 text-sm opacity-90 font-inter">
-                  You have been logged out of your account.
-                </p>
-              </div>
-              <button
-                onClick={closeSignOutSuccess}
-                className="text-light hover:text-secondary transition-colors flex-shrink-0"
-              >
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </CartProvider>
   );
 }
 

@@ -1,96 +1,64 @@
-// SignIn.jsx - Creates Firebase Auth account and updates existing user data
+// SignIn.jsx - Creates Firebase Auth account on first sign-in and updates existing user data
 import { useState, useEffect, useRef } from "react";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { auth, db, DEFAULT_ADMIN } from "../firebase";
 import { ref, get, set, remove } from "firebase/database";
 
-const SignIn = ({ navigateToPage, onAuthSuccess }) => {
+const SignIn = ({ navigateToPage, onAuthSuccess, location }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isPendingUser, setIsPendingUser] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [activeField, setActiveField] = useState("email");
+
   const emailRef = useRef(null);
   const passwordRef = useRef(null);
   const formRef = useRef(null);
 
   useEffect(() => {
-    // Clear ALL saved credentials from localStorage to ensure empty fields
-    const clearAllStoredData = () => {
-      // Clear remembered credentials
-      localStorage.removeItem('rememberedEmail');
-      localStorage.removeItem('rememberedPassword');
-      
-      // Clear any pending user data
-      localStorage.removeItem('pending_user_email');
-      localStorage.removeItem('pending_user_id');
-      
-      // Clear any other potential stored form data
-      localStorage.removeItem('signin_email');
-      localStorage.removeItem('signin_password');
-      localStorage.removeItem('signin_remember');
-      
-      // Clear session storage as well
-      sessionStorage.removeItem('signin_email');
-      sessionStorage.removeItem('signin_password');
-      
-      // Reset form state
-      setEmail("");
-      setPassword("");
-      setRememberMe(false);
-      setIsPendingUser(false);
-      setError("");
-    };
+    // Clear any existing credentials on load
+    localStorage.removeItem('rememberedEmail');
+    localStorage.removeItem('rememberedPassword');
 
-    // Clear on initial load
-    clearAllStoredData();
-
-    // Focus on email field after clearing
+    // Focus on email field
     setTimeout(() => {
       if (emailRef.current) {
         emailRef.current.focus();
+        setActiveField('email');
       }
     }, 100);
-    
-    // Scroll form into view with header offset
+
+    // Scroll form into view
     setTimeout(() => {
       if (formRef.current) {
-        const headerHeight = 64; // h-16 = 4rem = 64px
+        const headerHeight = 64;
         const elementPosition = formRef.current.getBoundingClientRect().top;
         const offsetPosition = elementPosition + window.pageYOffset - headerHeight;
-        
         window.scrollTo({
           top: offsetPosition,
           behavior: 'smooth'
         });
       }
     }, 150);
+  }, []); // No location dependency – no pre‑filling
 
-    // Cleanup function to clear data when component unmounts
-    return () => {
-      clearAllStoredData();
-    };
-  }, []);
-
-  // Check if email exists in users collection with pending status (only when user types)
+  // Check if the entered email belongs to a pending user (to show info message)
   useEffect(() => {
     const checkIfPendingUser = async () => {
       if (email.trim()) {
         try {
           const usersRef = ref(db, 'users');
           const snapshot = await get(usersRef);
-          
           if (snapshot.exists()) {
             const users = snapshot.val();
-            
-            // Find user with this email and pending status
-            const foundUser = Object.entries(users).find(([userId, userData]) => 
-              userData.email && 
-              userData.email.toLowerCase() === email.toLowerCase().trim() && 
+            const foundUser = Object.entries(users).find(([userId, userData]) =>
+              userData.email &&
+              userData.email.toLowerCase() === email.toLowerCase().trim() &&
               userData.accountStatus === "pending"
             );
-            
             setIsPendingUser(!!foundUser);
           } else {
             setIsPendingUser(false);
@@ -103,11 +71,57 @@ const SignIn = ({ navigateToPage, onAuthSuccess }) => {
         setIsPendingUser(false);
       }
     };
-    
-    // Only check if email has value and user has stopped typing
+
     const timeoutId = setTimeout(checkIfPendingUser, 500);
     return () => clearTimeout(timeoutId);
   }, [email]);
+
+  // Helper to store user data in localStorage after successful sign‑in
+  const storeUserDataInLocalStorage = async (uid, email) => {
+    try {
+      const userRef = ref(db, `users/${uid}`);
+      const snapshot = await get(userRef);
+      if (snapshot.exists()) {
+        const userData = snapshot.val();
+        localStorage.setItem('current_user', JSON.stringify({
+          fullName: userData.displayName || userData.fullName || "",
+          displayName: userData.displayName || "",
+          email: userData.email || email,
+          phone: userData.phone || "",
+          phoneNumber: userData.phoneNumber || {},
+          country: userData.country || "",
+          state: userData.state || "",
+          city: userData.city || "",
+          pincode: userData.pincode || "",
+          address: userData.address || {}
+        }));
+      } else {
+        localStorage.setItem('current_user', JSON.stringify({ email }));
+      }
+    } catch (err) {
+      console.warn("Could not store user data in localStorage", err);
+    }
+  };
+
+  const handleKeyDown = (e, currentField) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (currentField === 'email') {
+        if (passwordRef.current) {
+          passwordRef.current.focus();
+          setActiveField('password');
+        }
+      } else if (currentField === 'password') {
+        if (email.trim() && password.trim() && !loading) {
+          handleSubmit(e);
+        }
+      }
+    }
+  };
+
+  const handleFocus = (fieldName) => {
+    setActiveField(fieldName);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -129,67 +143,47 @@ const SignIn = ({ navigateToPage, onAuthSuccess }) => {
       return;
     }
 
-    // Save credentials if remember me is checked
-    if (rememberMe) {
-      localStorage.setItem('rememberedEmail', trimmedEmail);
-      localStorage.setItem('rememberedPassword', trimmedPassword);
-    } else {
-      localStorage.removeItem('rememberedEmail');
-      localStorage.removeItem('rememberedPassword');
-    }
-
     try {
-      // First, try to sign in (for existing Firebase Auth users)
+      // First, try to sign in (existing Firebase Auth user)
       try {
         const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, trimmedPassword);
         const user = userCredential.user;
-        
+
         console.log("✅ Existing user signed in:", user.email);
-        
+
         // Update last login
         try {
           const userRef = ref(db, `users/${user.uid}`);
           const userSnapshot = await get(userRef);
-          
           if (userSnapshot.exists()) {
             await set(ref(db, `users/${user.uid}/lastLogin`), new Date().toISOString());
-            console.log("✅ Last login updated");
           }
         } catch (dbError) {
           console.warn("Could not update last login:", dbError);
         }
-        
-        // Check if this is admin
+
+        // Store user data in localStorage
+        await storeUserDataInLocalStorage(user.uid, trimmedEmail);
+        localStorage.removeItem('pending_user_email'); // just in case
+
         const isAdmin = user.email.toLowerCase() === DEFAULT_ADMIN.email.toLowerCase();
-        console.log("✅ Is admin?", isAdmin);
-        
-        if (onAuthSuccess) {
-          onAuthSuccess();
-        }
-        
+        if (onAuthSuccess) onAuthSuccess();
         navigateToPage(isAdmin ? "admin" : "home");
         return;
-        
+
       } catch (signInError) {
-        // If sign in fails, check if this is a pending user
+        // If sign in fails, check for pending user
         if (signInError.code === 'auth/user-not-found' || signInError.code === 'auth/invalid-credential') {
-          
-          // Look for pending user data in users collection
           let pendingUserData = null;
           let pendingUserId = null;
-          
+
           try {
             const usersRef = ref(db, 'users');
             const snapshot = await get(usersRef);
-            
             if (snapshot.exists()) {
               const users = snapshot.val();
-              
-              // Find pending user with this email
               for (const [userId, userData] of Object.entries(users)) {
-                if (userData.email && 
-                    userData.email.toLowerCase() === trimmedEmail && 
-                    userData.accountStatus === "pending") {
+                if (userData.email && userData.email.toLowerCase() === trimmedEmail && userData.accountStatus === "pending") {
                   pendingUserId = userId;
                   pendingUserData = userData;
                   break;
@@ -199,68 +193,75 @@ const SignIn = ({ navigateToPage, onAuthSuccess }) => {
           } catch (dbError) {
             console.error("Error checking users:", dbError);
           }
-          
+
           if (pendingUserData && pendingUserId) {
-            // Verify the password matches
+            // Verify password (plain text – consider hashing in production)
             if (pendingUserData.password !== trimmedPassword) {
               throw new Error("Incorrect password. Please use the password you set during signup.");
             }
-            
+
             // Create Firebase Auth account for pending user
             console.log("🔄 Creating Firebase Auth account for pending user...");
-            
             const userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, trimmedPassword);
             const firebaseUser = userCredential.user;
-            
-            console.log("✅ Firebase Auth account created:", firebaseUser.email);
-            
+
             // Update display name
             if (pendingUserData.displayName) {
               await updateProfile(firebaseUser, { displayName: pendingUserData.displayName });
             }
-            
-            // Move user data from pending location to permanent Firebase UID location
+
+            // Move user data to permanent location
             const newUserRef = ref(db, `users/${firebaseUser.uid}`);
-            
-            // Create the new user record with Firebase UID
             await set(newUserRef, {
               uid: firebaseUser.uid,
               email: firebaseUser.email,
               displayName: pendingUserData.displayName || "",
+              fullName: pendingUserData.fullName || "",
+              country: pendingUserData.country || "",
+              state: pendingUserData.state || "",
+              city: pendingUserData.city || "",
+              pincode: pendingUserData.pincode || "",
+              phone: pendingUserData.phone || "",
               phoneNumber: pendingUserData.phoneNumber || {},
+              address: pendingUserData.address || {},
               role: "user",
               isAdmin: false,
               isVerified: false,
               isActive: true,
-              accountStatus: "active", // Now active
+              accountStatus: "active",
               createdAt: pendingUserData.createdAt || new Date().toISOString(),
               lastLogin: new Date().toISOString(),
               signupCompleted: true,
               createdFromPending: true
             });
-            
-            console.log("✅ User data moved to Firebase UID location");
-            
-            // Remove the old pending user data
+
+            // Remove old pending data
             await remove(ref(db, `users/${pendingUserId}`));
-            
-            console.log("✅ Pending user data removed");
-            
-            if (onAuthSuccess) {
-              onAuthSuccess();
-            }
-            
-            // Clear form after successful creation
-            setTimeout(() => {
-              setEmail("");
-              setPassword("");
-              setRememberMe(false);
-              setIsPendingUser(false);
-            }, 100);
-            
+
+            // Store user data in localStorage
+            await storeUserDataInLocalStorage(firebaseUser.uid, trimmedEmail);
+            localStorage.removeItem('pending_user_email');
+
+            if (onAuthSuccess) onAuthSuccess();
             navigateToPage("home");
             return;
           } else {
+            // Check if user exists but not pending
+            try {
+              const usersRef = ref(db, 'users');
+              const snapshot = await get(usersRef);
+              if (snapshot.exists()) {
+                const users = snapshot.val();
+                const existingUser = Object.entries(users).find(([userId, userData]) =>
+                  userData.email && userData.email.toLowerCase() === trimmedEmail
+                );
+                if (existingUser) {
+                  throw new Error("This account has already been activated. Please sign in with your credentials.");
+                }
+              }
+            } catch (checkError) {
+              if (checkError.message.includes("already been activated")) throw checkError;
+            }
             throw new Error("No account found. Please sign up first.");
           }
         } else if (signInError.code === 'auth/wrong-password') {
@@ -269,34 +270,9 @@ const SignIn = ({ navigateToPage, onAuthSuccess }) => {
           throw signInError;
         }
       }
-      
     } catch (err) {
-      console.error("❌ Authentication error:", err.code, err.message);
-
-      if (err.code) {
-        switch (err.code) {
-          case 'auth/user-not-found':
-          case 'auth/invalid-credential':
-            setError("No account found with this email. Please sign up first.");
-            break;
-          case 'auth/wrong-password':
-            setError("Incorrect password. Please try again.");
-            break;
-          case 'auth/invalid-email':
-            setError("Invalid email address format.");
-            break;
-          case 'auth/too-many-requests':
-            setError("Too many failed attempts. Please try again later.");
-            break;
-          case 'auth/network-request-failed':
-            setError("Network error. Please check your connection.");
-            break;
-          default:
-            setError(err.message || "Login failed. Please check your credentials.");
-        }
-      } else {
-        setError(err.message || "An unexpected error occurred.");
-      }
+      console.error("❌ Authentication error:", err.code || err.message);
+      setError(err.message || "An unexpected error occurred.");
     } finally {
       setLoading(false);
     }
@@ -307,28 +283,11 @@ const SignIn = ({ navigateToPage, onAuthSuccess }) => {
   };
 
   const clearForm = () => {
-    // Clear all stored data
-    localStorage.removeItem('rememberedEmail');
-    localStorage.removeItem('rememberedPassword');
-    localStorage.removeItem('pending_user_email');
-    localStorage.removeItem('pending_user_id');
-    localStorage.removeItem('signin_email');
-    localStorage.removeItem('signin_password');
-    localStorage.removeItem('signin_remember');
-    
-    sessionStorage.removeItem('signin_email');
-    sessionStorage.removeItem('signin_password');
-    
-    // Reset form state
     setEmail("");
     setPassword("");
     setRememberMe(false);
     setError("");
     setIsPendingUser(false);
-    
-    // Clear input refs if they exist
-    if (emailRef.current) emailRef.current.value = "";
-    if (passwordRef.current) passwordRef.current.value = "";
   };
 
   return (
@@ -341,8 +300,8 @@ const SignIn = ({ navigateToPage, onAuthSuccess }) => {
           <p className="text-light text-sm">Welcome to Exclusive Trader</p>
         </div>
 
-        <form 
-          onSubmit={handleSubmit} 
+        <form
+          onSubmit={handleSubmit}
           className="bg-dark/80 p-6 rounded-lg border border-secondary shadow-neon backdrop-blur-sm"
           autoComplete="off"
         >
@@ -355,7 +314,7 @@ const SignIn = ({ navigateToPage, onAuthSuccess }) => {
             </div>
           )}
 
-          {/* Email - Always empty by default */}
+          {/* Email */}
           <div className="mb-4">
             <label className="block text-light mb-2 font-medium text-sm" htmlFor="signin-email">
               Email Address
@@ -365,32 +324,58 @@ const SignIn = ({ navigateToPage, onAuthSuccess }) => {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 bg-dark border border-gray-600 rounded-lg text-light placeholder-gray-400 focus:border-secondary focus:outline-none transition-colors text-sm"
+              onKeyDown={(e) => handleKeyDown(e, 'email')}
+              onFocus={() => handleFocus('email')}
+              className={`w-full px-3 py-2 bg-dark border rounded-lg text-light placeholder-gray-400 focus:outline-none transition-colors text-sm ${
+                activeField === 'email' ? 'border-secondary' : 'border-gray-600'
+              }`}
               placeholder="Enter your email"
               required
               autoComplete="off"
               id="signin-email"
               name="email"
             />
+            <div className="mt-1 text-xs text-light/70 flex justify-between">
+              <span>Press Enter to go to password</span>
+              <span>{email.trim() ? '✓' : ''}</span>
+            </div>
           </div>
 
-          {/* Password - Always empty by default */}
+          {/* Password with Eye Toggle */}
           <div className="mb-4">
             <label className="block text-light mb-2 font-medium text-sm" htmlFor="signin-password">
               Password
             </label>
-            <input
-              ref={passwordRef}
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 bg-dark border border-gray-600 rounded-lg text-light placeholder-gray-400 focus:border-secondary focus:outline-none transition-colors text-sm"
-              placeholder="Enter your password"
-              required
-              autoComplete="new-password" // Using 'new-password' to prevent autofill
-              id="signin-password"
-              name="new-password" // Different name to prevent browser autofill
-            />
+            <div className="relative">
+              <input
+                ref={passwordRef}
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, 'password')}
+                onFocus={() => handleFocus('password')}
+                className={`w-full px-3 py-2 bg-dark border rounded-lg text-light placeholder-gray-400 focus:outline-none transition-colors text-sm pr-10 ${
+                  activeField === 'password' ? 'border-secondary' : 'border-gray-600'
+                }`}
+                placeholder="Enter your password"
+                required
+                autoComplete="new-password"
+                id="signin-password"
+                name="new-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-secondary focus:outline-none"
+                tabIndex="-1"
+              >
+                <i className={`fas fa-${showPassword ? 'eye-slash' : 'eye'} text-sm`}></i>
+              </button>
+            </div>
+            <div className="mt-1 text-xs text-light/70 flex justify-between">
+              <span>Press Enter to sign in</span>
+              <span>{password.trim() ? '✓' : ''}</span>
+            </div>
           </div>
 
           {/* Remember Me & Forgot Password */}
@@ -417,20 +402,32 @@ const SignIn = ({ navigateToPage, onAuthSuccess }) => {
             </button>
           </div>
 
+          {/* Info message for pending users */}
+          {isPendingUser && (
+            <div className="mb-4 p-3 bg-yellow-500/20 border border-yellow-500 text-yellow-300 rounded-lg text-xs">
+              <div className="flex items-start">
+                <i className="fas fa-info-circle mr-2 mt-0.5 text-sm"></i>
+                <span>
+                  This is your first time signing in. Your account will be activated after successful sign-in.
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Submit Button */}
           <button
             type="submit"
             disabled={loading || !email.trim() || !password.trim()}
             className={`w-full bg-secondary text-dark font-bold py-2 rounded-lg transition-all duration-300 text-sm ${
               loading || !email.trim() || !password.trim()
-                ? 'opacity-50 cursor-not-allowed' 
+                ? 'opacity-50 cursor-not-allowed'
                 : 'hover:bg-accent hover:scale-[1.02] active:scale-[0.98]'
             }`}
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
                 <i className="fas fa-spinner fa-spin text-sm"></i>
-                {isPendingUser ? "Creating Account..." : "Signing In..."}
+                {isPendingUser ? "Activating Account..." : "Signing In..."}
               </span>
             ) : (
               "Sign In"

@@ -53,6 +53,7 @@ const Sidebar = ({
     e.stopPropagation();
   };
 
+  
   // Handle overlay click - only close sidebar
   const handleOverlayClick = (e) => {
     e.stopPropagation();

@@ -1,3 +1,5 @@
+import img1 from '../assets/About.webp'
+
 const About = () => {
   return (
     <section id="about" className="py-20 bg-light text-dark">
@@ -22,7 +24,7 @@ const About = () => {
           </div>
           <div className="about-image flex-1 rounded-xl overflow-hidden shadow-lg">
             <img 
-              src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80" 
+              src={img1}
               alt="Futuristic Warehouse" 
               className="w-full h-auto block transition-transform duration-500 hover:scale-110"
             />

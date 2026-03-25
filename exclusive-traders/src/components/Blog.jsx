@@ -1,6 +1,14 @@
 // src/components/Blog.jsx
 import React from 'react';
 import { Link } from 'react-router-dom';
+import img1 from '../assets/BlogPost/Blog1.webp'
+import img2 from '../assets/BlogPost/Blog2.webp'
+import img3 from '../assets/BlogPost/Blog3.webp'
+import img4 from '../assets/BlogPost/Blog4.webp'
+import img5 from '../assets/BlogPost/Blog5.webp'
+import img6 from '../assets/BlogPost/Blog6.webp'
+import img7 from '../assets/BlogPost/Blog7.webp'
+import img8 from '../assets/BlogPost/Blog8.webp'
 
 const Blog = () => {
   const blogPosts = [
@@ -8,49 +16,49 @@ const Blog = () => {
       id: 1,
       title: "Global Rice Trade 2024: Navigating New Market Dynamics",
       excerpt: "Explore the evolving landscape of international rice trade with insights on emerging markets, pricing trends, and supply chain innovations.",
-      image: "https://etimg.etb2bimg.com/photo/107855000.cms",
+      image: img1,
     },
     {
       id: 2,
       title: "Wheat Import Strategies for European Markets",
       excerpt: "Master the complexities of wheat import regulations, quality standards, and logistics for successful European market entry.",
-      image: "https://www.desmud.org/uploads/9d8e3b3a7c9447ff686bc1e0e9058f87.jpg",
+      image: img2,
     },
     {
       id: 3,
       title: "Sustainable Coffee Sourcing: From Farm to Global Markets",
       excerpt: "Discover how ethical sourcing and sustainable practices are reshaping the global coffee trade landscape.",
-      image: "https://www.iisd.org/ssi/wp-content/uploads/2019/07/coffee-header-1024x683-1.jpg",
+      image: img3,
     },
     {
       id: 4,
       title: "Spice Export Opportunities in Middle Eastern Markets",
       excerpt: "Learn how to capitalize on the growing demand for premium spices in GCC countries and beyond.",
-      image: "https://media.istockphoto.com/id/532239993/photo/spices-in-the-spice-souk-in-dubai.jpg?s=612x612&w=0&k=20&c=TaEW_D8YyNI7XLlYCETeXD5yWP2slyUT4cofMn8mmSw=",
+      image: img4,
     },
     {
       id: 5,
       title: "Nut Export Regulations and Market Access Strategies",
       excerpt: "Navigate the complex world of nut exports with our comprehensive guide to regulations, certifications, and market entry.",
-      image: "https://cdn.momex.ae/momex-storage/static/blog_images/Nuts_and_Food_Export_A_Comprehensive_Guide_for_the_International_Market_momex_74ff6.webp",
+      image: img5,
     },
     {
       id: 6,
       title: "Pulse Trading: Opportunities in Emerging Markets",
       excerpt: "Discover the growing demand for pulses in developing economies and how to build sustainable export relationships.",
-      image: "https://media.istockphoto.com/id/1143901429/photo/finance-investment-stock-market-chart-graph-currency-exchange-global-business-fintech.jpg?s=612x612&w=0&k=20&c=Gxi0YYjQiE2kCZL5y9hU2LCQshUl5mVsJsYWjj5ckFQ=",
+      image: img6,
     },
     {
       id: 7,
       title: "Tea Export Dynamics: Traditional Markets vs Emerging Opportunities",
       excerpt: "Analyze the shifting patterns in global tea trade and identify new growth markets for premium tea exports.",
-      image: "https://i0.wp.com/elmarspices.com/wp-content/uploads/2023/03/tea2.jpg?resize=640%2C397&ssl=1",
+      image: img7,
     },
     {
       id: 8,
       title: "Sugar Trading in Volatile Markets: Risk Management Strategies",
       excerpt: "Learn how to navigate price volatility and supply chain challenges in the global sugar trade.",
-      image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSFvgaCxLt6d1jCubTN6okL3pFMscFUcCKUKjFnEpnchQJABF4bBtlH-Ayu1xUaEfOoSKw&usqp=CAU",
+      image: img8,
     }
   ];
 

@@ -3,22 +3,22 @@ import { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
 
 // Partner images
-import img1 from '../assets/partners/Atirath_Industries.png';
-import img2 from '../assets/partners/Atirath.png';
-import img3 from '../assets/partners/Dubai.png';
-import img4 from '../assets/partners/Oman.png';
-import img5 from '../assets/partners/Royalone.png';
-import img6 from '../assets/partners/Siea.png';
-import img7 from '../assets/partners/Tyago.png';
-import img8 from '../assets/partners/metas.jpg';
-import img9 from '../assets/partners/Sugana.png';
+import img1 from '../assets/partners/Atirath_Industries.webp'
+import img2 from '../assets/partners/Atirath.webp'
+import img3 from '../assets/partners/Dubai.webp'
+import img4 from '../assets/partners/Oman.webp'
+import img5 from '../assets/partners/Royalone.webp'
+import img6 from '../assets/partners/Siea.webp'
+import img7 from '../assets/partners/Tyago.webp'
+import img8 from '../assets/partners/metas.webp'
+import img9 from '../assets/partners/Sugana.webp'
 
 // Certification images (only for modal content, not for homepage)
-import img10 from '../assets/Fssai.png';
-import img11 from '../assets/IAF.png';
-import img12 from '../assets/KAB.png';
-import img13 from '../assets/MSME.jpeg';
-import img14 from '../assets/UCS.png';
+import img10 from '../assets/Fssai.webp'
+import img11 from '../assets/IAF.webp'
+import img12 from '../assets/KAB.webp'
+import img13 from '../assets/MSME.webp'
+import img14 from '../assets/UCS.webp'
 
 const Hero = ({ showInnovation }) => {
   const canvasRef = useRef();

@@ -13,6 +13,8 @@ import {
 
 const AdminProducts = () => {
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState({});
+  const [companies, setCompanies] = useState({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -21,7 +23,7 @@ const AdminProducts = () => {
   const [isIpadPro, setIsIpadPro] = useState(false);
   const [isNestHub, setIsNestHub] = useState(false);
 
-  // Enhanced device detection with specific detection for iPad Pro and Nest Hub
+  // Device detection (unchanged)
   useEffect(() => {
     const checkScreenSize = () => {
       const width = window.innerWidth;
@@ -29,54 +31,159 @@ const AdminProducts = () => {
       const isIpad = /Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
       const isChrome = /Chrome/.test(navigator.userAgent);
       
-      // Detect specific devices
       setIsMobile(width < 768);
       setIsTablet(width >= 768 && width < 1024);
       
-      // iPad Pro: 1024px - 1366px with specific aspect ratio (4:3)
       const isIpadProWidth = width >= 1024 && width <= 1366;
       const aspectRatio = width / height;
-      const isIpadProRatio = aspectRatio >= 1.29 && aspectRatio <= 1.37; // 4:3 aspect ratio
-      
+      const isIpadProRatio = aspectRatio >= 1.29 && aspectRatio <= 1.37;
       setIsIpadPro((isIpadProWidth && isIpadProRatio) || (isIpad && width >= 1024));
       
-      // Nest Hub (Google Home Hub): 1024px specifically with Chrome
-      // Nest Hub has fixed 1024x600 resolution (1.7 aspect ratio)
       const isNestHubWidth = width === 1024;
       const isNestHubAspect = aspectRatio >= 1.6 && aspectRatio <= 1.8;
-      
       setIsNestHub((isNestHubWidth && isNestHubAspect) || (isNestHubWidth && isChrome && width === 1024));
     };
     
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
-    
-    return () => {
-      window.removeEventListener('resize', checkScreenSize);
-    };
+    return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
   useEffect(() => {
-    fetchProducts();
+    fetchAllData();
   }, []);
 
-  const fetchProducts = async () => {
+  // ---------- Image and data helpers (copied from Products.jsx) ----------
+  const getCorrectImagePath = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    let cleanPath = imagePath.replace(/^\/+/, '');
+    if (cleanPath.startsWith('img/')) {
+      cleanPath = cleanPath.replace('img/', 'ProductsImg/');
+    }
+    if (!cleanPath.startsWith('ProductsImg/')) {
+      cleanPath = `ProductsImg/${cleanPath}`;
+    }
+    return `/${cleanPath}`;
+  };
+
+  const getProductImageUrl = (productData) => {
+    if (!productData) return null;
+    const possibleImageFields = ['image', 'product_image', 'main_image'];
+    for (const field of possibleImageFields) {
+      if (productData[field]) {
+        return getCorrectImagePath(productData[field]);
+      }
+    }
+    return null;
+  };
+
+  const getFallbackImage = (categoryId) => {
+    const fallbackImages = {
+      rice: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=500&auto=format&fit=crop&q=60',
+      dry_fruits: 'https://images.unsplash.com/photo-1541636410410-0c5c8a9e6a8f?w=500&auto=format&fit=crop&q=60',
+      dried_fruits: 'https://images.unsplash.com/photo-1541636410410-0c5c8a9e6a8f?w=500&auto=format&fit=crop&q=60',
+      lentils: 'https://food.fnr.sndimg.com/content/dam/images/food/fullset/2016/2/15/0/HE_dried-legumes-istock-2_s4x3.jpg.rend.hgtvcom.1280.1280.85.suffix/1455572939649.webp',
+      popcorn: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=500&auto=format&fit=crop&q=60',
+      tea: 'https://images.unsplash.com/photo-1571934811396-0ff49ca3a8a7?w=500&auto=format&fit=crop&q=60',
+      beverages: 'https://images.unsplash.com/photo-1561758033-d89a9ad46330?w=500&auto=format&fit=crop&q=60',
+      default: 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=500&auto=format&fit=crop&q=60'
+    };
+    return fallbackImages[categoryId] || fallbackImages.default;
+  };
+
+  // Helper to get price as a readable string
+  const formatPrice = (product) => {
+    if (product["Ex-Mill_usd"] !== undefined) {
+      return `$${product["Ex-Mill_usd"].toFixed(2)} EX-MILL`;
+    }
+    if (product.price_usd_per_carton !== undefined) {
+      return `$${product.price_usd_per_carton.toFixed(2)} / carton`;
+    }
+    if (product.fob_price_usd !== undefined) {
+      return `$${product.fob_price_usd.toFixed(2)} FOB`;
+    }
+    if (product.price?.min !== undefined && product.price?.max !== undefined) {
+      const min = product.price.min;
+      const max = product.price.max;
+      const unit = product.price.unit ? ` / ${product.price.unit}` : '';
+      return `$${min} - $${max}${unit}`;
+    }
+    if (product.price !== undefined && typeof product.price === 'number') {
+      return `$${product.price.toFixed(2)}`;
+    }
+    return 'Contact for Price';
+  };
+
+  // ---------- Fetch all data ----------
+  const fetchAllData = async () => {
+    setLoading(true);
     try {
       const db = getDatabase();
-      const snapshot = await get(ref(db, "products"));
+      const [categoriesSnap, companiesSnap, productsSnap] = await Promise.all([
+        get(ref(db, 'categories')),
+        get(ref(db, 'companies')),
+        get(ref(db, 'products'))
+      ]);
 
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        const list = Object.keys(data).map((id) => ({
+      const fetchedCategories = categoriesSnap.exists() ? categoriesSnap.val() : {};
+      const fetchedCompanies = companiesSnap.exists() ? companiesSnap.val() : {};
+      const fetchedProducts = productsSnap.exists() ? productsSnap.val() : {};
+
+      setCategories(fetchedCategories);
+      setCompanies(fetchedCompanies);
+
+      // Build product list with normalized fields
+      const productList = Object.entries(fetchedProducts).map(([id, product]) => {
+        // Resolve category name
+        let categoryName = 'Uncategorized';
+        if (product.categoryId) {
+          const cat = fetchedCategories[product.categoryId];
+          if (cat && cat.name) categoryName = cat.name;
+        } else if (product.category) {
+          categoryName = product.category;
+        }
+
+        // Resolve company name
+        let companyName = null;
+        if (product.companyId) {
+          const comp = fetchedCompanies[product.companyId];
+          if (comp && comp.name) companyName = comp.name;
+        }
+
+        // Get image URL
+        const imageUrl = getProductImageUrl(product) || getFallbackImage(product.categoryId);
+
+        // Get stock (handle object or number)
+        let stock = product.stock;
+        if (typeof stock === 'object' && stock !== null) {
+          stock = stock.quantity || stock.value || 0;
+        }
+        if (stock === undefined || stock === null) stock = 0;
+
+        // Get status
+        let status = product.status;
+        if (status === undefined || status === null) {
+          status = 'active'; // default
+        }
+
+        return {
           id,
-          ...data[id],
-        }));
-        setProducts(list);
-      } else {
-        setProducts([]);
-      }
+          ...product,
+          category: categoryName,
+          companyName,
+          imageUrl,
+          stock,
+          status,
+          priceDisplay: formatPrice(product)
+        };
+      });
+
+      setProducts(productList);
     } catch (error) {
-      console.error("Fetch error:", error);
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
@@ -84,11 +191,10 @@ const AdminProducts = () => {
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this product?")) return;
-
     try {
       const db = getDatabase();
       await remove(ref(db, `products/${id}`));
-      fetchProducts();
+      fetchAllData(); // refresh
     } catch (error) {
       console.error("Delete error:", error);
       alert("Failed to delete product");
@@ -97,8 +203,10 @@ const AdminProducts = () => {
 
   const filteredProducts = products.filter((p) => {
     const matchSearch =
-      p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.category?.toLowerCase().includes(searchTerm.toLowerCase());
+      (p.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (p.category?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (p.companyName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (p.brand?.toLowerCase() || '').includes(searchTerm.toLowerCase());
 
     const matchCategory =
       selectedCategory === "all" || p.category === selectedCategory;
@@ -106,12 +214,12 @@ const AdminProducts = () => {
     return matchSearch && matchCategory;
   });
 
-  const categories = [
+  const categoriesList = [
     "all",
     ...new Set(products.map((p) => p.category).filter(Boolean)),
   ];
 
-  // Helper function for responsive text sizes
+  // Responsive helpers (unchanged)
   const getTextSize = (type = 'body') => {
     if (isNestHub) {
       return type === 'header' ? 'text-xs' : 'text-[10px]';
@@ -124,7 +232,6 @@ const AdminProducts = () => {
     }
   };
 
-  // Helper function for responsive padding
   const getPadding = (type = 'card') => {
     if (isNestHub) {
       return type === 'card' ? 'p-1.5' : type === 'table' ? 'px-1 py-1.5' : 'p-2';
@@ -135,6 +242,12 @@ const AdminProducts = () => {
     } else {
       return type === 'card' ? 'p-4' : type === 'table' ? 'px-4 py-3' : 'p-4';
     }
+  };
+
+  const handleImageError = (e) => {
+    e.target.onerror = null;
+    e.target.style.display = 'none';
+    e.target.parentNode.querySelector('.fallback-icon')?.classList.remove('hidden');
   };
 
   return (
@@ -157,7 +270,6 @@ const AdminProducts = () => {
         }`}>Manage your products and inventory</p>
       </div>
 
-      {/* DIVIDER */}
       <div className="border-t border-[#00F5C8]/20 mb-4 sm:mb-5 lg:mb-6"></div>
 
       {/* HEADER ACTION BAR */}
@@ -225,7 +337,7 @@ const AdminProducts = () => {
                 'py-2.5 text-sm'
               } focus:outline-none focus:ring-1 focus:ring-[#00F5C8]`}
             >
-              {categories.map((cat) => (
+              {categoriesList.map((cat) => (
                 <option key={cat} value={cat} className="bg-[#050B14]">
                   {cat === "all" ? "All Categories" : cat}
                 </option>
@@ -249,7 +361,7 @@ const AdminProducts = () => {
         </div>
       </div>
 
-      {/* MAIN CONTENT AREA */}
+      {/* MAIN CONTENT */}
       {loading ? (
         <div className={`bg-[#0B1C2D] border border-[#00F5C8]/20 rounded-xl ${
           isNestHub ? 'p-8' : 'p-10 sm:p-12'
@@ -294,34 +406,33 @@ const AdminProducts = () => {
                       </tr>
                     ) : (
                       filteredProducts.map((p) => (
-                        <tr
-                          key={p.id}
-                          className="hover:bg-[#00F5C8]/5 transition-colors duration-150"
-                        >
+                        <tr key={p.id} className="hover:bg-[#00F5C8]/5 transition-colors duration-150">
                           {/* Product Column */}
                           <td className={`${getPadding('table')}`}>
                             <div className="flex items-center gap-2 sm:gap-3">
-                              {p.image ? (
-                                <img
-                                  src={p.image}
-                                  alt={p.name}
-                                  className={`${
-                                    isNestHub ? 'h-8 w-8' : 
-                                    isIpadPro ? 'h-9 w-9' : 
-                                    'h-10 w-10'
-                                  } rounded object-cover flex-shrink-0`}
-                                />
-                              ) : (
+                              <div className="relative flex-shrink-0">
+                                {p.imageUrl ? (
+                                  <img
+                                    src={p.imageUrl}
+                                    alt={p.name}
+                                    className={`${
+                                      isNestHub ? 'h-8 w-8' : 
+                                      isIpadPro ? 'h-9 w-9' : 
+                                      'h-10 w-10'
+                                    } rounded object-cover`}
+                                    onError={handleImageError}
+                                  />
+                                ) : null}
                                 <div className={`${
                                   isNestHub ? 'h-8 w-8' : 
                                   isIpadPro ? 'h-9 w-9' : 
                                   'h-10 w-10'
-                                } bg-[#050B14] rounded flex items-center justify-center flex-shrink-0`}>
+                                } bg-[#050B14] rounded flex items-center justify-center ${p.imageUrl ? 'hidden' : ''} fallback-icon`}>
                                   <FaBox className={`${
                                     isNestHub ? 'text-xs' : 'text-sm'
                                   } text-gray-500`} />
                                 </div>
-                              )}
+                              </div>
                               <div className="min-w-0 flex-1">
                                 <p className={`font-medium truncate ${
                                   isNestHub ? 'text-xs' : 
@@ -333,7 +444,7 @@ const AdminProducts = () => {
                                 <p className={`text-gray-400 truncate ${
                                   isNestHub ? 'text-[10px]' : 'text-xs'
                                 }`}>
-                                  {p.brand || "No brand"}
+                                  {p.companyName || p.brand || "No brand"}
                                 </p>
                               </div>
                             </div>
@@ -344,7 +455,7 @@ const AdminProducts = () => {
                             <span className={`inline-flex px-2 py-0.5 rounded-full bg-[#00F5C8]/10 text-[#00F5C8] ${
                               isNestHub ? 'text-[10px]' : 'text-xs'
                             } whitespace-nowrap`}>
-                              {p.category || "Uncategorized"}
+                              {p.category}
                             </span>
                           </td>
 
@@ -353,7 +464,7 @@ const AdminProducts = () => {
                             <span className={`font-medium ${
                               isNestHub ? 'text-xs' : 'text-sm'
                             }`}>
-                              ${p.price || "0.00"}
+                              {p.priceDisplay}
                             </span>
                           </td>
 
@@ -363,23 +474,23 @@ const AdminProducts = () => {
                               className={`inline-flex px-2 py-0.5 rounded-full ${
                                 isNestHub ? 'text-[10px]' : 'text-xs'
                               } whitespace-nowrap ${
-                                (p.stock || 0) > 10
+                                p.stock > 10
                                   ? "bg-green-500/20 text-green-400"
-                                  : (p.stock || 0) > 0
+                                  : p.stock > 0
                                   ? "bg-yellow-500/20 text-yellow-400"
                                   : "bg-red-500/20 text-red-400"
                               }`}
                             >
-                              {p.stock || 0}
+                              {p.stock}
                             </span>
                           </td>
 
                           {/* Status Column */}
                           <td className={`${getPadding('table')}`}>
-                            <span className={`inline-flex px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 ${
-                              isNestHub ? 'text-[10px]' : 'text-xs'
-                            } whitespace-nowrap`}>
-                              {p.status || "active"}
+                            <span className={`inline-flex px-2 py-0.5 rounded-full ${
+                              p.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                            } ${isNestHub ? 'text-[10px]' : 'text-xs'} whitespace-nowrap`}>
+                              {p.status}
                             </span>
                           </td>
 
@@ -473,20 +584,22 @@ const AdminProducts = () => {
                     {/* Card Header */}
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        {p.image ? (
-                          <img
-                            src={p.image}
-                            alt={p.name}
-                            className="h-12 w-12 rounded object-cover flex-shrink-0"
-                          />
-                        ) : (
-                          <div className="h-12 w-12 bg-[#050B14] rounded flex items-center justify-center flex-shrink-0">
+                        <div className="relative flex-shrink-0">
+                          {p.imageUrl ? (
+                            <img
+                              src={p.imageUrl}
+                              alt={p.name}
+                              className="h-12 w-12 rounded object-cover"
+                              onError={handleImageError}
+                            />
+                          ) : null}
+                          <div className={`h-12 w-12 bg-[#050B14] rounded flex items-center justify-center ${p.imageUrl ? 'hidden' : ''} fallback-icon`}>
                             <FaBox className="text-gray-500" />
                           </div>
-                        )}
+                        </div>
                         <div className="min-w-0">
                           <h3 className="font-medium text-white text-sm truncate">{p.name}</h3>
-                          <p className="text-gray-400 text-xs truncate">{p.brand || "No brand"}</p>
+                          <p className="text-gray-400 text-xs truncate">{p.companyName || p.brand || "No brand"}</p>
                         </div>
                       </div>
                       <div className="flex gap-2">
@@ -511,29 +624,31 @@ const AdminProducts = () => {
                       <div>
                         <p className="text-xs text-gray-400 mb-1">Category</p>
                         <span className="inline-flex px-2 py-0.5 rounded-full bg-[#00F5C8]/10 text-[#00F5C8] text-xs">
-                          {p.category || "Uncategorized"}
+                          {p.category}
                         </span>
                       </div>
                       <div>
                         <p className="text-xs text-gray-400 mb-1">Price</p>
-                        <p className="text-white font-medium text-sm">${p.price || "0.00"}</p>
+                        <p className="text-white font-medium text-sm">{p.priceDisplay}</p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-400 mb-1">Stock</p>
                         <span className={`inline-flex px-2 py-0.5 rounded-full text-xs ${
-                          (p.stock || 0) > 10
+                          p.stock > 10
                             ? "bg-green-500/20 text-green-400"
-                            : (p.stock || 0) > 0
+                            : p.stock > 0
                             ? "bg-yellow-500/20 text-yellow-400"
                             : "bg-red-500/20 text-red-400"
                         }`}>
-                          {p.stock || 0}
+                          {p.stock}
                         </span>
                       </div>
                       <div>
                         <p className="text-xs text-gray-400 mb-1">Status</p>
-                        <span className="inline-flex px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs">
-                          {p.status || "active"}
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs ${
+                          p.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                        }`}>
+                          {p.status}
                         </span>
                       </div>
                     </div>
@@ -589,7 +704,7 @@ const AdminProducts = () => {
                 <p className={`font-bold text-yellow-400 ${
                   isNestHub ? 'text-sm' : 'text-lg'
                 }`}>
-                  {products.filter(p => (p.stock || 0) < 10 && (p.stock || 0) > 0).length}
+                  {products.filter(p => p.stock > 0 && p.stock < 10).length}
                 </p>
               </div>
               <div className="bg-[#050B14] rounded-lg p-3">
@@ -599,7 +714,7 @@ const AdminProducts = () => {
                 <p className={`font-bold text-red-400 ${
                   isNestHub ? 'text-sm' : 'text-lg'
                 }`}>
-                  {products.filter(p => (p.stock || 0) === 0).length}
+                  {products.filter(p => p.stock === 0).length}
                 </p>
               </div>
             </div>
@@ -619,10 +734,8 @@ const AdminProducts = () => {
         </p>
       </div>
 
-      {/* BOTTOM SPACING */}
       <div className={`${
-        isNestHub ? 'h-3' : 
-        'h-4 sm:h-6 md:h-8'
+        isNestHub ? 'h-3' : 'h-4 sm:h-6 md:h-8'
       }`}></div>
     </div>
   );

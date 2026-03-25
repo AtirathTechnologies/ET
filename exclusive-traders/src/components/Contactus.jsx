@@ -9,7 +9,8 @@ const Contact = ({ onBackToHome }) => {
     message: ''
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [whatsAppMessage, setWhatsAppMessage] = useState('');
 
   const handleChange = (e) => {
     setFormData({
@@ -18,21 +19,34 @@ const Contact = ({ onBackToHome }) => {
     });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    alert('Message sent successfully! We\'ll contact you soon.');
-    
-    setFormData({
-      name: '',
-      email: '',
-      subject: '',
-      message: ''
-    });
-    
-    setIsSubmitting(false);
+  // WhatsApp number (without + or spaces)
+  const whatsAppNumber = "919703744571"; // Format: country code + number without +
+
+  // Predefined message templates for different subjects
+  const getWhatsAppTemplate = (subject) => {
+    const templates = {
+      'export-inquiry': "Hello! I'm interested in learning more about your export services. Could you please provide information about your export process and requirements?",
+      'product-info': "Hello! I'd like to know more about your products. Could you please share your product catalog and pricing information?",
+      'partnership': "Hello! I'm interested in exploring business partnership opportunities with Exclusive Trader. I'd like to discuss potential collaboration.",
+      'support': "Hello! I need assistance with your services. Could you please help me with my query?",
+      'default': "Hello! I'd like to connect with Exclusive Trader regarding your services."
+    };
+    return templates[subject] || templates.default;
+  };
+
+  // Handle WhatsApp chat
+  const handleWhatsAppChat = (subject = 'default') => {
+    const defaultMessage = getWhatsAppTemplate(subject);
+    setWhatsAppMessage(defaultMessage);
+    setShowWhatsAppModal(true);
+  };
+
+  // Send WhatsApp message
+  const sendWhatsAppMessage = (customMessage = null) => {
+    const message = customMessage || whatsAppMessage;
+    const encodedMessage = encodeURIComponent(message);
+    window.open(`https://wa.me/${whatsAppNumber}?text=${encodedMessage}`, '_blank');
+    setShowWhatsAppModal(false);
   };
 
   return (
@@ -66,41 +80,49 @@ const Contact = ({ onBackToHome }) => {
                   <h3 className="font-semibold text-white mb-2">
                     Our Office
                   </h3>
-                  <p className="text-light/70">123 Trade Center</p>
-                  <p className="text-light/70">Mumbai, India 400001</p>
+                  <p className="text-light/70">1st Floor, 8 Quary Wharf, Abbey Road,</p>
+                  <p className="text-light/70">Barking, London, IG11 7BZ.</p>
                 </div>
               </div>
 
               {/* Phone */}
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0">
-                  <i className="fas fa-phone text-green-500"></i>
+                <div className="w-12 h-12 rounded-full bg-secondary/20 flex items-center justify-center flex-shrink-0">
+                  <i className="fas fa-phone text-secondary"></i>
                 </div>
                 <div>
                   <h3 className="font-semibold text-white mb-2">
                     Call Us
                   </h3>
-                  <p className="text-light/70">+91 59765 43210</p>
+                  <p className="text-light/70">+44 20 1234 5678</p>
+                  {/* WhatsApp Click to Chat - Website Theme */}
+                  <button
+                    onClick={() => handleWhatsAppChat()}
+                    className="mt-2 text-secondary hover:text-accent text-sm flex items-center gap-2 transition-colors"
+                  >
+                    <i className="fab fa-whatsapp"></i>
+                    <span>Chat on WhatsApp</span>
+                  </button>
                 </div>
               </div>
 
               {/* Email */}
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
-                  <i className="fas fa-envelope text-red-500"></i>
+                <div className="w-12 h-12 rounded-full bg-secondary/20 flex items-center justify-center flex-shrink-0">
+                  <i className="fas fa-envelope text-secondary"></i>
                 </div>
                 <div>
                   <h3 className="font-semibold text-white mb-2">
                     Email
                   </h3>
-                  <p className="text-light/70">contact@exclusivetrader.com</p>
+                  <p className="text-light/70">fmcg@exclusivetrader.co.uk</p>
                 </div>
               </div>
 
               {/* Business Hours */}
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-full bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
-                  <i className="fas fa-clock text-yellow-500"></i>
+                <div className="w-12 h-12 rounded-full bg-secondary/20 flex items-center justify-center flex-shrink-0">
+                  <i className="fas fa-clock text-secondary"></i>
                 </div>
                 <div>
                   <h3 className="font-semibold text-white mb-2">
@@ -124,10 +146,10 @@ const Contact = ({ onBackToHome }) => {
           {/* Contact Form - Same height as contact info */}
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 flex flex-col h-full">
             <h2 className="text-xl font-bold text-secondary mb-6">
-              Send Us a Message
+              Send Us a Message on WhatsApp
             </h2>
             
-            <form onSubmit={handleSubmit} className="space-y-5 flex-grow">
+            <div className="space-y-5 flex-grow">
               <div className="grid md:grid-cols-2 gap-5">
                 {/* Name Field */}
                 <div className="space-y-2">
@@ -198,15 +220,25 @@ const Contact = ({ onBackToHome }) => {
                 />
               </div>
 
-              {/* Submit Button */}
+              {/* WhatsApp Action Button - Website Theme */}
               <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full py-3 bg-gradient-to-r from-secondary to-accent text-dark font-bold rounded-lg hover:shadow-lg hover:shadow-secondary/20 transition-all duration-300 disabled:opacity-50"
+                type="button"
+                onClick={() => {
+                  const subject = formData.subject || 'default';
+                  const message = `*Name:* ${formData.name}\n*Email:* ${formData.email}\n*Subject:* ${formData.subject}\n\n${formData.message || getWhatsAppTemplate(subject)}`;
+                  sendWhatsAppMessage(message);
+                }}
+                disabled={!formData.name || !formData.email || !formData.subject || !formData.message}
+                className="w-full py-3 bg-secondary text-dark font-bold rounded-lg hover:bg-accent transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {isSubmitting ? 'Sending...' : 'Send Message'}
+                <i className="fab fa-whatsapp"></i>
+                <span>Send via WhatsApp</span>
               </button>
-            </form>
+
+              <p className="text-light/50 text-xs text-center mt-2">
+                Your message will be sent directly to our WhatsApp
+              </p>
+            </div>
           </div>
         </div>
 
@@ -218,6 +250,46 @@ const Contact = ({ onBackToHome }) => {
           </p>
         </div>
       </div>
+
+      {/* WhatsApp Message Modal */}
+      {showWhatsAppModal && (
+        <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark border border-secondary rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold text-secondary mb-4 flex items-center gap-2">
+              <i className="fab fa-whatsapp text-green-500"></i>
+              <span>WhatsApp Message</span>
+            </h3>
+            
+            <p className="text-light/80 mb-4 text-sm">
+              Edit your message below before sending:
+            </p>
+            
+            <textarea
+              value={whatsAppMessage}
+              onChange={(e) => setWhatsAppMessage(e.target.value)}
+              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-light focus:outline-none focus:border-secondary mb-4"
+              rows="5"
+              placeholder="Type your message here..."
+            />
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => sendWhatsAppMessage()}
+                className="flex-1 bg-secondary text-dark font-bold py-2 rounded-lg hover:bg-accent transition-colors flex items-center justify-center gap-2"
+              >
+                <i className="fab fa-whatsapp"></i>
+                <span>Send</span>
+              </button>
+              <button
+                onClick={() => setShowWhatsAppModal(false)}
+                className="flex-1 bg-gray-600 text-white font-bold py-2 rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

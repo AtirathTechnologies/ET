@@ -1,7 +1,7 @@
 // src/components/Leadership.jsx
 import React from 'react';
-import himayatImg from '../assets/Hymat.png';
-import chandarImg from '../assets/Chander.png';
+import himayatImg from '../assets/Hymat.webp';
+import chandarImg from '../assets/Chander.webp';
 
 
 const Leadership = () => {

@@ -1,6 +1,6 @@
 // Footer.jsx
 import { useNavigate } from 'react-router-dom';
-import logo from '../assets/logo.png';
+import logo from '../assets/ExclusiveTraderLogo.svg';
 
 const Footer = () => {
   const navigate = useNavigate();
@@ -146,7 +146,7 @@ const Footer = () => {
               <li className="flex items-center gap-2">
                 <i className="fas fa-phone text-secondary flex-shrink-0 text-xs"></i> 
                 <span className="text-white text-xs sm:text-sm break-all">
-                  +44 20 1234 5678 , +917396007479
+                  +44 20 1234 5678 
                 </span>
               </li>
               
