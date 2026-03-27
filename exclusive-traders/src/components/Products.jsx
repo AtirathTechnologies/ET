@@ -269,16 +269,20 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
   // ==================== IMAGE PATH HANDLING ====================
   const getCorrectImagePath = (imagePath) => {
     if (!imagePath) return null;
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+
+    // If already full URL → return directly
+    if (imagePath.startsWith('http')) {
       return imagePath;
     }
+
+    // Remove leading slashes
     let cleanPath = imagePath.replace(/^\/+/, '');
+
+    // ONLY modify if needed
     if (cleanPath.startsWith('img/')) {
       cleanPath = cleanPath.replace('img/', 'ProductsImg/');
     }
-    if (!cleanPath.startsWith('ProductsImg/')) {
-      cleanPath = `ProductsImg/${cleanPath}`;
-    }
+
     return `/${cleanPath}`;
   };
 
@@ -1108,13 +1112,13 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
             viewMode === 'products'
               ? (selectedBrand ? handleBackToBrands : handleBackToCompanies)
               : viewMode === 'brands'
-              ? handleBackToCompanies
-              : () => navigate(-1)
+                ? handleBackToCompanies
+                : () => navigate(-1)
           }
           title={
             viewMode === 'products' ? 'Back to Brands' :
-            viewMode === 'brands' ? 'Back to Companies' :
-            'Back'
+              viewMode === 'brands' ? 'Back to Companies' :
+                'Back'
           }
         >
           <ArrowLeft size={24} />
@@ -1180,23 +1184,23 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
 
               <h2 className="modal-product-title">{detailedProduct.name}</h2>
               <div className="modal-product-brand">
-                {detailedProduct.brandName && detailedProduct.brandName !== 'General' 
+                {detailedProduct.brandName && detailedProduct.brandName !== 'General'
                   ? `${detailedProduct.brandName} • ${detailedProduct.companyName}`
                   : detailedProduct.companyName}
               </div>
-              
+
               {detailedProduct.product_description && (
                 <p className="modal-product-description">
                   {detailedProduct.product_description}
                 </p>
               )}
-              
+
               <div className="modal-product-price">
                 {getProductPrice(detailedProduct)}
               </div>
-              
+
               <h3 className="modal-specs-title">Product Specifications</h3>
-              
+
               <div className="modal-specs-list">
                 {detailedProduct.packaging?.units_per_carton && (
                   <div className="modal-spec-item">
@@ -1204,56 +1208,56 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
                     <span className="modal-spec-value">{detailedProduct.packaging.units_per_carton}</span>
                   </div>
                 )}
-                
+
                 {detailedProduct.packaging?.unit_weight_ml && (
                   <div className="modal-spec-item">
                     <span className="modal-spec-label">Unit Volume</span>
                     <span className="modal-spec-value">{detailedProduct.packaging.unit_weight_ml} ml</span>
                   </div>
                 )}
-                
+
                 {detailedProduct.packaging?.unit_weight_g && !detailedProduct.packaging?.unit_weight_ml && (
                   <div className="modal-spec-item">
                     <span className="modal-spec-label">Unit Weight</span>
                     <span className="modal-spec-value">{detailedProduct.packaging.unit_weight_g} g</span>
                   </div>
                 )}
-                
+
                 {detailedProduct["Ex-Mill_usd"] !== undefined && (
                   <div className="modal-spec-item">
                     <span className="modal-spec-label">EXW Price</span>
                     <span className="modal-spec-value">$${detailedProduct["Ex-Mill_usd"].toFixed(2)} USD</span>
                   </div>
                 )}
-                
+
                 {detailedProduct["Ex-Mill_usd"] === undefined && detailedProduct.fob_price_usd !== undefined && (
                   <div className="modal-spec-item">
                     <span className="modal-spec-label">FOB Price</span>
                     <span className="modal-spec-value">$${detailedProduct.fob_price_usd.toFixed(2)} USD</span>
                   </div>
                 )}
-                
+
                 {detailedProduct.origin && (
                   <div className="modal-spec-item">
                     <span className="modal-spec-label">Origin</span>
                     <span className="modal-spec-value">{detailedProduct.origin}</span>
                   </div>
                 )}
-                
+
                 {detailedProduct.hsn_code && (
                   <div className="modal-spec-item">
                     <span className="modal-spec-label">HSN Code</span>
                     <span className="modal-spec-value">{detailedProduct.hsn_code}</span>
                   </div>
                 )}
-                
+
                 {detailedProduct.shelf_life && (
                   <div className="modal-spec-item">
                     <span className="modal-spec-label">Shelf Life</span>
                     <span className="modal-spec-value">{detailedProduct.shelf_life}</span>
                   </div>
                 )}
-                
+
                 {detailedProduct.pack_type && (
                   <div className="modal-spec-item">
                     <span className="modal-spec-label">Pack Type</span>
@@ -1261,7 +1265,7 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
                   </div>
                 )}
               </div>
-              
+
               <div className="modal-buttons">
                 <button className="btn-close-modal" onClick={() => setShowDetailsModal(false)}>
                   Close
