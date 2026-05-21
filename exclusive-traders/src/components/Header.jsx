@@ -4,6 +4,8 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { db } from "../firebase";
 import { ref, get, update } from "firebase/database";
 import logo from "../assets/ExclusiveTraderLogo.svg";
+import { ShoppingCart } from "lucide-react";
+import { useCart } from "./CartContext";
 
 const Header = ({
   navigateToPage,
@@ -12,14 +14,31 @@ const Header = ({
   isMobileMenuOpen,
   toggleMobileMenu,
 }) => {
+  const { getCartCount } = useCart();
+  const cartItemCount = getCartCount();
+
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showMoreDropdown, setShowMoreDropdown] = useState(false);
   const [activeSection, setActiveSection] = useState("home");
   const [isMobileView, setIsMobileView] = useState(false);
-  const [mainWebsiteUser, setMainWebsiteUser] = useState(null);
-  const [userProfileData, setUserProfileData] = useState(null);
+  const [mainWebsiteUser, setMainWebsiteUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem('current_user') || localStorage.getItem('currentUser');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [userProfileData, setUserProfileData] = useState(() => {
+    try {
+      const stored = localStorage.getItem('current_user') || localStorage.getItem('currentUser');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
-  const [isAuthInitialized, setIsAuthInitialized] = useState(false); // NEW: prevents flicker
+  const [isAuthInitialized, setIsAuthInitialized] = useState(true);
 
   // State for editing
   const [isEditing, setIsEditing] = useState(false);
@@ -29,10 +48,46 @@ const Header = ({
   const [editSuccess, setEditSuccess] = useState("");
 
   // Form fields for editing
-  const [editName, setEditName] = useState("");
-  const [editEmail, setEditEmail] = useState("");
-  const [editPhone, setEditPhone] = useState("");
-  const [editCountry, setEditCountry] = useState("");
+  const [editName, setEditName] = useState(() => {
+    try {
+      const stored = localStorage.getItem('current_user') || localStorage.getItem('currentUser');
+      if (stored) {
+        const userData = JSON.parse(stored);
+        return userData.fullName || userData.displayName || userData.name || "";
+      }
+    } catch {}
+    return "";
+  });
+  const [editEmail, setEditEmail] = useState(() => {
+    try {
+      const stored = localStorage.getItem('current_user') || localStorage.getItem('currentUser');
+      if (stored) {
+        const userData = JSON.parse(stored);
+        return userData.email || "";
+      }
+    } catch {}
+    return "";
+  });
+  const [editPhone, setEditPhone] = useState(() => {
+    try {
+      const stored = localStorage.getItem('current_user') || localStorage.getItem('currentUser');
+      if (stored) {
+        const userData = JSON.parse(stored);
+        return userData.phone || userData.phoneNumber || "";
+      }
+    } catch {}
+    return "";
+  });
+  const [editCountry, setEditCountry] = useState(() => {
+    try {
+      const stored = localStorage.getItem('current_user') || localStorage.getItem('currentUser');
+      if (stored) {
+        const userData = JSON.parse(stored);
+        return userData.country || "";
+      }
+    } catch {}
+    return "";
+  });
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -91,7 +146,6 @@ const Header = ({
     let isActive = true;
 
     const processCurrentUser = async () => {
-      setIsAuthInitialized(false); // start loading
       const isMainWebsite = !location.pathname.startsWith('/admin');
 
       if (isMainWebsite && currentUser && currentUser.email) {
@@ -222,7 +276,8 @@ const Header = ({
       '/join-us': 'join-us',
       '/contact': 'contact',
       '/leadership': 'leadership',
-      '/transport': 'transport',  // <-- ADDED
+      '/transport': 'transport',
+      '/cart': 'cart',
       '/signin': 'signin',
       '/signup': 'signup',
     };
@@ -380,6 +435,7 @@ const Header = ({
     setUserProfileData(null);
     setUserId(null);
     localStorage.removeItem('current_user');
+    localStorage.removeItem('currentUser');
     navigate('/');
   };
 
@@ -483,7 +539,7 @@ const Header = ({
   // Helper to check if any page inside "More" dropdown is active
   const isMoreDropdownActive = () => {
     const currentPage = getCurrentPageFromPath();
-    const dropdownPages = ['services', 'leadership', 'blog', 'join-us', 'Feedback', 'transport']; // <-- ADDED 'transport'
+    const dropdownPages = ['services', 'leadership', 'blog', 'join-us', 'Feedback', 'transport'];
     return dropdownPages.includes(currentPage);
   };
 
@@ -652,7 +708,7 @@ const Header = ({
   return (
     <header className="bg-primary/90 text-light py-3 sticky top-0 z-50 shadow-neon backdrop-blur-sm w-full">
       <div className="w-full flex justify-between items-center px-2 sm:px-4 md:px-6">
-        {/* Logo + Brand - stays on left */}
+        {/* Logo + Brand */}
         <div className="flex-shrink-0">
           <div className="flex items-center gap-2 sm:gap-3">
             <img
@@ -757,7 +813,6 @@ const Header = ({
                   >
                     Feedback
                   </Link>
-                  {/* NEW: Transport link */}
                   <Link
                     to="/transport"
                     className="block px-4 py-2 text-light hover:bg-secondary/20 hover:text-secondary transition-colors text-sm"
@@ -771,8 +826,22 @@ const Header = ({
           </nav>
         </div>
 
-        {/* Right side: Auth / Profile */}
+        {/* Right side: Cart Icon + Auth / Profile */}
         <div className="flex-shrink-0 flex items-center gap-3 sm:gap-4 md:gap-5">
+          {/* Cart Icon */}
+          <Link
+            to="/cart"
+            className="relative text-light hover:text-secondary transition-colors"
+            onClick={() => toggleMobileMenu(false)}
+          >
+            <ShoppingCart size={24} />
+            {cartItemCount > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                {cartItemCount}
+              </span>
+            )}
+          </Link>
+
           {!isAuthInitialized ? (
             // Show loading spinner while determining auth status
             <div className="hidden lg:block w-8 h-8 flex items-center justify-center">
@@ -1059,7 +1128,6 @@ const Header = ({
                   Contact
                 </Link>
               </li>
-              {/* NEW: Transport link in mobile menu */}
               <li className="w-full">
                 <Link
                   to="/transport"
@@ -1067,6 +1135,17 @@ const Header = ({
                   onClick={(e) => { handleNavClick("transport", e); toggleMobileMenu(false); }}
                 >
                   Transport
+                </Link>
+              </li>
+
+              {/* Cart link in mobile menu */}
+              <li className="w-full">
+                <Link
+                  to="/cart"
+                  className="font-medium block py-3 px-4 rounded-lg transition-all duration-200 text-base text-light hover:bg-primary/50"
+                  onClick={(e) => { handleNavClick("cart", e); toggleMobileMenu(false); }}
+                >
+                  Cart {cartItemCount > 0 && `(${cartItemCount})`}
                 </Link>
               </li>
 

@@ -447,17 +447,17 @@ const Hero = ({ showInnovation }) => {
       ></div>
 
       {/* Main Content */}
-      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pt-24 sm:pt-32 md:pt-40 lg:pt-48 pb-20 sm:pb-24 md:pb-32">
-        <h1 className="text-3xl xs:text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 sm:mb-8 text-shadow-black leading-tight">
+      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pt-16 sm:pt-20 md:pt-24 lg:pt-28 pb-10 sm:pb-12 md:pb-16">
+        <h1 className="text-2xl xs:text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 text-shadow-black leading-tight">
           Revolutionizing Global Supply Chains<br />
-          <span className="text-secondary text-2xl xs:text-3xl sm:text-4xl md:text-5xl lg:text-6xl">with Futuristic Solutions</span>
+          <span className="text-secondary text-xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-5xl">with Futuristic Solutions</span>
         </h1>
-        <p className="text-sm xs:text-base sm:text-lg md:text-xl lg:text-2xl max-w-4xl mx-auto mb-8 sm:mb-10 md:mb-12 text-white/90 font-light px-2 sm:px-0">
+        <p className="text-xs xs:text-sm sm:text-base md:text-lg lg:text-xl max-w-4xl mx-auto mb-6 sm:mb-8 text-white/90 font-light px-2 sm:px-0">
           Exclusive Trader delivers cutting-edge import/export and warehousing services, powered by AI and blockchain for unparalleled efficiency and transparency across the UK and globally.
         </p>
         <button
           onClick={handleDiscoverInnovations}
-          className="px-6 sm:px-8 md:px-10 lg:px-12 py-3 sm:py-4 md:py-5 bg-secondary text-dark text-base sm:text-lg md:text-xl font-bold rounded-full hover:bg-accent transition-all duration-300 shadow-neon transform hover:scale-105 active:scale-95"
+          className="px-6 sm:px-8 md:px-10 py-3 sm:py-4 bg-secondary text-dark text-sm sm:text-base md:text-lg font-bold rounded-full hover:bg-accent transition-all duration-300 shadow-neon transform hover:scale-105 active:scale-95"
           style={{ minWidth: isMobile ? '200px' : 'auto' }}
         >
           Discover Our Innovations
@@ -465,8 +465,8 @@ const Hero = ({ showInnovation }) => {
       </div>
       
       {/* TRUSTED PARTNERS (Only partner logos, no certifications on homepage) */}
-      <div className="relative z-10 w-full bg-black/40 backdrop-blur-sm py-8 sm:py-10 md:py-12 border-t border-white/10">
-        <h3 className="text-center text-white/80 text-xs sm:text-sm md:text-base lg:text-lg font-semibold mb-6 sm:mb-8 tracking-widest px-2">
+      <div className="relative z-10 w-full bg-black/40 backdrop-blur-sm py-4 sm:py-6 md:py-8 border-t border-white/10">
+        <h3 className="text-center text-white/80 text-xs sm:text-sm md:text-base lg:text-lg font-semibold mb-4 sm:mb-6 tracking-widest px-2">
           TRUSTED PARTNERS
         </h3>
         <div 
@@ -507,9 +507,9 @@ const Hero = ({ showInnovation }) => {
                         src={img}
                         alt={`${partner.name} logo`}
                         className={`${
-                          isMobile ? 'h-10 sm:h-12' : 
-                          isTablet ? 'h-14 md:h-16' : 
-                          'h-16 lg:h-20 xl:h-24'
+                          isMobile ? 'h-8 sm:h-10' : 
+                          isTablet ? 'h-10 md:h-12' : 
+                          'h-12 lg:h-16 xl:h-20'
                         } w-auto object-contain drop-shadow-2xl brightness-90 group-hover:brightness-110 transition-all duration-300`}
                         loading="lazy"
                         onError={(e) => {
@@ -517,9 +517,9 @@ const Hero = ({ showInnovation }) => {
                           e.target.style.display = 'none';
                           e.target.parentElement.innerHTML = `
                             <div class="${
-                              isMobile ? 'h-10 sm:h-12' : 
-                              isTablet ? 'h-14 md:h-16' : 
-                              'h-16 lg:h-20 xl:h-24'
+                              isMobile ? 'h-8 sm:h-10' : 
+                              isTablet ? 'h-10 md:h-12' : 
+                              'h-12 lg:h-16 xl:h-20'
                             } w-20 sm:w-24 md:w-28 bg-gray-800 rounded-lg flex items-center justify-center">
                               <span class="text-xs sm:text-sm text-gray-400 text-center px-1">${partner.name}</span>
                             </div>

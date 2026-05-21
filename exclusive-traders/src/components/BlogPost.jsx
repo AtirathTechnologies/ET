@@ -313,7 +313,7 @@ const BlogPost = () => {
   }
 
   return (
-    <div className="min-h-screen bg-dark text-light py-8 px-4 professional-section">
+    <div className="min-h-screen bg-dark text-light professional-section">
       <div className="max-w-4xl mx-auto">
         <Link to="/blog" className="inline-block mb-8 text-secondary hover:text-accent flex items-center gap-2">
           ← Back to Blog

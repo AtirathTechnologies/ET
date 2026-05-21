@@ -10,7 +10,7 @@ const SignUp = ({ navigateToPage }) => {
   const [displayName, setDisplayName] = useState("");
   const [countryCode, setCountryCode] = useState("+91");
   const [phoneNumber, setPhoneNumber] = useState("");
-  // Country starts empty (no default)
+  // Manual text fields for location (no dropdowns)
   const [country, setCountry] = useState("");
   const [state, setState] = useState("");
   const [city, setCity] = useState("");
@@ -18,9 +18,6 @@ const SignUp = ({ navigateToPage }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [activeField, setActiveField] = useState("displayName");
-  const [isStateDropdownOpen, setIsStateDropdownOpen] = useState(false);
-  const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
-  const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -44,11 +41,8 @@ const SignUp = ({ navigateToPage }) => {
   const passwordRef = useRef(null);
   const confirmPasswordRef = useRef(null);
   const formRef = useRef(null);
-  const stateDropdownRef = useRef(null);
-  const cityDropdownRef = useRef(null);
-  const countryDropdownRef = useRef(null);
 
-  // Country options for phone code
+  // Country options for phone code (unchanged)
   const countryOptions = [
     { value: "+91", flag: "🇮🇳", name: "India", length: 10 },
     { value: "+1", flag: "🇺🇸", name: "USA", length: 10 },
@@ -65,221 +59,6 @@ const SignUp = ({ navigateToPage }) => {
     { value: "+1", flag: "🇨🇦", name: "Canada", length: 10 }
   ];
 
-  // Comprehensive country, state, and city data (keep your existing huge object)
-  const locationData = {
-    "India": {
-      states: {
-        "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Nashik", "Aurangabad", "Thane", "Kolhapur", "Solapur", "Amravati", "Nanded"],
-        "Delhi": ["New Delhi", "North Delhi", "South Delhi", "East Delhi", "West Delhi", "Central Delhi"],
-        "Karnataka": ["Bengaluru", "Mysore", "Mangalore", "Hubli", "Belgaum", "Gulbarga", "Davanagere", "Bellary"],
-        "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli", "Salem", "Tirunelveli", "Vellore", "Erode"],
-        "Telangana": ["Hyderabad", "Warangal", "Nizamabad", "Karimnagar", "Khammam", "Ramagundam"],
-        "Uttar Pradesh": ["Lucknow", "Kanpur", "Agra", "Varanasi", "Allahabad", "Noida", "Ghaziabad", "Meerut"],
-        "Gujarat": ["Ahmedabad", "Surat", "Vadodara", "Rajkot", "Gandhinagar", "Bhavnagar", "Jamnagar"],
-        "Rajasthan": ["Jaipur", "Jodhpur", "Udaipur", "Kota", "Ajmer", "Bikaner", "Jaisalmer"],
-        "West Bengal": ["Kolkata", "Howrah", "Siliguri", "Durgapur", "Asansol", "Darjeeling"],
-        "Madhya Pradesh": ["Indore", "Bhopal", "Gwalior", "Jabalpur", "Ujjain", "Sagar"],
-        "Punjab": ["Ludhiana", "Amritsar", "Jalandhar", "Patiala", "Bathinda", "Mohali"],
-        "Haryana": ["Gurugram", "Faridabad", "Panipat", "Ambala", "Hisar", "Karnal"],
-        "Bihar": ["Patna", "Gaya", "Bhagalpur", "Muzaffarpur", "Darbhanga", "Purnia"],
-        "Kerala": ["Thiruvananthapuram", "Kochi", "Kozhikode", "Thrissur", "Kollam", "Kannur"],
-        "Andhra Pradesh": ["Visakhapatnam", "Vijayawada", "Guntur", "Nellore", "Kurnool", "Rajahmundry"],
-        "Odisha": ["Bhubaneswar", "Cuttack", "Rourkela", "Berhampur", "Sambalpur", "Puri"],
-        "Assam": ["Guwahati", "Silchar", "Dibrugarh", "Jorhat", "Nagaon", "Tezpur"],
-        "Jharkhand": ["Ranchi", "Jamshedpur", "Dhanbad", "Bokaro", "Hazaribagh", "Deoghar"],
-        "Chhattisgarh": ["Raipur", "Bhilai", "Bilaspur", "Korba", "Durg", "Rajnandgaon"],
-        "Uttarakhand": ["Dehradun", "Haridwar", "Roorkee", "Haldwani", "Rishikesh", "Nainital"],
-        "Himachal Pradesh": ["Shimla", "Manali", "Dharamshala", "Kullu", "Mandi", "Solan"],
-        "Jammu and Kashmir": ["Srinagar", "Jammu", "Anantnag", "Baramulla", "Kathua", "Pulwama"],
-        "Goa": ["Panaji", "Margao", "Vasco da Gama", "Mapusa", "Ponda", "Bicholim"],
-        "Other": ["Other"]
-      }
-    },
-    "United Kingdom": {
-      states: {
-        "England": ["London", "Manchester", "Birmingham", "Liverpool", "Leeds", "Sheffield", "Bristol", "Newcastle", "Nottingham", "Southampton", "Oxford", "Cambridge"],
-        "Scotland": ["Edinburgh", "Glasgow", "Aberdeen", "Dundee", "Inverness", "Stirling", "Perth"],
-        "Wales": ["Cardiff", "Swansea", "Newport", "Bangor", "Wrexham", "St Davids"],
-        "Northern Ireland": ["Belfast", "Derry", "Lisburn", "Newry", "Armagh", "Enniskillen"],
-        "Other": ["Other"]
-      }
-    },
-    "United States": {
-      states: {
-        "Alabama": ["Birmingham", "Montgomery", "Mobile", "Huntsville", "Tuscaloosa", "Hoover"],
-        "Alaska": ["Anchorage", "Fairbanks", "Juneau", "Sitka", "Ketchikan", "Wasilla"],
-        "Arizona": ["Phoenix", "Tucson", "Mesa", "Chandler", "Scottsdale", "Glendale"],
-        "Arkansas": ["Little Rock", "Fort Smith", "Fayetteville", "Springdale", "Jonesboro", "Conway"],
-        "California": ["Los Angeles", "San Francisco", "San Diego", "Sacramento", "San Jose", "Fresno", "Long Beach", "Oakland", "Bakersfield", "Anaheim"],
-        "Colorado": ["Denver", "Colorado Springs", "Aurora", "Fort Collins", "Boulder", "Pueblo"],
-        "Connecticut": ["Bridgeport", "New Haven", "Stamford", "Hartford", "Waterbury", "Danbury"],
-        "Delaware": ["Wilmington", "Dover", "Newark", "Middletown", "Smyrna", "Milford"],
-        "Florida": ["Miami", "Orlando", "Tampa", "Jacksonville", "Tallahassee", "Fort Lauderdale", "St. Petersburg", "Hialeah"],
-        "Georgia": ["Atlanta", "Augusta", "Savannah", "Athens", "Macon", "Columbus"],
-        "Hawaii": ["Honolulu", "Hilo", "Kailua", "Pearl City", "Waipahu", "Kaneohe"],
-        "Idaho": ["Boise", "Meridian", "Nampa", "Idaho Falls", "Pocatello", "Caldwell"],
-        "Illinois": ["Chicago", "Aurora", "Naperville", "Springfield", "Peoria", "Rockford"],
-        "Indiana": ["Indianapolis", "Fort Wayne", "Evansville", "South Bend", "Carmel", "Bloomington"],
-        "Iowa": ["Des Moines", "Cedar Rapids", "Davenport", "Sioux City", "Iowa City", "Waterloo"],
-        "Kansas": ["Wichita", "Overland Park", "Kansas City", "Topeka", "Olathe", "Lawrence"],
-        "Kentucky": ["Louisville", "Lexington", "Bowling Green", "Owensboro", "Covington", "Frankfort"],
-        "Louisiana": ["New Orleans", "Baton Rouge", "Shreveport", "Lafayette", "Lake Charles", "Kenner"],
-        "Maine": ["Portland", "Lewiston", "Bangor", "South Portland", "Auburn", "Brunswick"],
-        "Maryland": ["Baltimore", "Frederick", "Rockville", "Gaithersburg", "Bowie", "Annapolis"],
-        "Massachusetts": ["Boston", "Worcester", "Springfield", "Cambridge", "Lowell", "Brockton"],
-        "Michigan": ["Detroit", "Grand Rapids", "Warren", "Sterling Heights", "Ann Arbor", "Lansing"],
-        "Minnesota": ["Minneapolis", "Saint Paul", "Rochester", "Bloomington", "Duluth", "Brooklyn Park"],
-        "Mississippi": ["Jackson", "Gulfport", "Southaven", "Biloxi", "Hattiesburg", "Meridian"],
-        "Missouri": ["Kansas City", "St. Louis", "Springfield", "Columbia", "Independence", "Lee's Summit"],
-        "Montana": ["Billings", "Missoula", "Great Falls", "Bozeman", "Butte", "Helena"],
-        "Nebraska": ["Omaha", "Lincoln", "Bellevue", "Grand Island", "Kearney", "Fremont"],
-        "Nevada": ["Las Vegas", "Reno", "Henderson", "Carson City", "Sparks", "North Las Vegas"],
-        "New Hampshire": ["Manchester", "Nashua", "Concord", "Derry", "Dover", "Rochester"],
-        "New Jersey": ["Newark", "Jersey City", "Paterson", "Elizabeth", "Edison", "Trenton"],
-        "New Mexico": ["Albuquerque", "Santa Fe", "Las Cruces", "Rio Rancho", "Roswell", "Farmington"],
-        "New York": ["New York City", "Buffalo", "Rochester", "Syracuse", "Albany", "Yonkers"],
-        "North Carolina": ["Charlotte", "Raleigh", "Greensboro", "Durham", "Winston-Salem", "Fayetteville"],
-        "North Dakota": ["Fargo", "Bismarck", "Grand Forks", "Minot", "West Fargo", "Williston"],
-        "Ohio": ["Columbus", "Cleveland", "Cincinnati", "Toledo", "Akron", "Dayton"],
-        "Oklahoma": ["Oklahoma City", "Tulsa", "Norman", "Broken Arrow", "Lawton", "Edmond"],
-        "Oregon": ["Portland", "Salem", "Eugene", "Gresham", "Hillsboro", "Bend"],
-        "Pennsylvania": ["Philadelphia", "Pittsburgh", "Allentown", "Erie", "Reading", "Scranton"],
-        "Rhode Island": ["Providence", "Warwick", "Cranston", "Pawtucket", "East Providence", "Woonsocket"],
-        "South Carolina": ["Charleston", "Columbia", "Greenville", "Spartanburg", "Rock Hill", "Mount Pleasant"],
-        "South Dakota": ["Sioux Falls", "Rapid City", "Aberdeen", "Brookings", "Watertown", "Mitchell"],
-        "Tennessee": ["Nashville", "Memphis", "Knoxville", "Chattanooga", "Clarksville", "Murfreesboro"],
-        "Texas": ["Houston", "Dallas", "Austin", "San Antonio", "Fort Worth", "El Paso", "Arlington", "Corpus Christi"],
-        "Utah": ["Salt Lake City", "West Valley City", "Provo", "West Jordan", "Orem", "Sandy"],
-        "Vermont": ["Burlington", "Essex", "South Burlington", "Colchester", "Rutland", "Bennington"],
-        "Virginia": ["Virginia Beach", "Norfolk", "Chesapeake", "Richmond", "Newport News", "Alexandria"],
-        "Washington": ["Seattle", "Spokane", "Tacoma", "Vancouver", "Bellevue", "Kent"],
-        "West Virginia": ["Charleston", "Huntington", "Morgantown", "Parkersburg", "Wheeling", "Weirton"],
-        "Wisconsin": ["Milwaukee", "Madison", "Green Bay", "Kenosha", "Racine", "Appleton"],
-        "Wyoming": ["Cheyenne", "Casper", "Laramie", "Gillette", "Rock Springs", "Sheridan"],
-        "Other": ["Other"]
-      }
-    },
-    "UAE": {
-      states: {
-        "Dubai": ["Dubai City", "Jebel Ali", "Hatta", "Deira", "Bur Dubai", "Al Barsha"],
-        "Abu Dhabi": ["Abu Dhabi City", "Al Ain", "Madinat Zayed", "Ruwais", "Liwa", "Al Dhafra"],
-        "Sharjah": ["Sharjah City", "Khor Fakkan", "Kalba", "Dibba Al-Hisn", "Al Hamriyah", "Al Dhaid"],
-        "Ajman": ["Ajman City", "Masfout", "Al Manama", "Al Hamidiyah", "Al Rumailah"],
-        "Ras Al Khaimah": ["Ras Al Khaimah City", "Al Jazirah Al Hamra", "Khatt", "Masafi", "Dibba Al-Hisn"],
-        "Fujairah": ["Fujairah City", "Dibba Al-Fujairah", "Masafi", "Al Badiyah", "Mirbah"],
-        "Umm Al Quwain": ["Umm Al Quwain City", "Al Salamah", "Al Laba", "Al Rafaah", "Falaj Al Mualla"],
-        "Other": ["Other"]
-      }
-    },
-    "Australia": {
-      states: {
-        "New South Wales": ["Sydney", "Newcastle", "Wollongong", "Central Coast", "Coffs Harbour", "Wagga Wagga"],
-        "Victoria": ["Melbourne", "Geelong", "Ballarat", "Bendigo", "Shepparton", "Mildura"],
-        "Queensland": ["Brisbane", "Gold Coast", "Cairns", "Townsville", "Toowoomba", "Mackay"],
-        "Western Australia": ["Perth", "Fremantle", "Bunbury", "Geraldton", "Kalgoorlie", "Albany"],
-        "South Australia": ["Adelaide", "Mount Gambier", "Whyalla", "Murray Bridge", "Port Lincoln", "Port Augusta"],
-        "Tasmania": ["Hobart", "Launceston", "Devonport", "Burnie", "Ulverstone", "Kingston"],
-        "Australian Capital Territory": ["Canberra", "Belconnen", "Tuggeranong", "Gungahlin", "Weston Creek", "Woden Valley"],
-        "Northern Territory": ["Darwin", "Palmerston", "Alice Springs", "Katherine", "Nhulunbuy", "Tennant Creek"],
-        "Other": ["Other"]
-      }
-    },
-    "Canada": {
-      states: {
-        "Ontario": ["Toronto", "Ottawa", "Mississauga", "Hamilton", "London", "Windsor", "Kitchener", "Brampton"],
-        "Quebec": ["Montreal", "Quebec City", "Laval", "Gatineau", "Longueuil", "Sherbrooke", "Trois-Rivières"],
-        "British Columbia": ["Vancouver", "Victoria", "Surrey", "Burnaby", "Richmond", "Kelowna", "Abbotsford"],
-        "Alberta": ["Calgary", "Edmonton", "Red Deer", "Lethbridge", "St. Albert", "Medicine Hat", "Grand Prairie"],
-        "Manitoba": ["Winnipeg", "Brandon", "Steinbach", "Portage la Prairie", "Thompson", "Winkler"],
-        "Saskatchewan": ["Saskatoon", "Regina", "Prince Albert", "Moose Jaw", "Swift Current", "Yorkton"],
-        "Nova Scotia": ["Halifax", "Dartmouth", "Sydney", "Truro", "New Glasgow", "Glace Bay"],
-        "New Brunswick": ["Moncton", "Saint John", "Fredericton", "Dieppe", "Miramichi", "Edmundston"],
-        "Newfoundland and Labrador": ["St. John's", "Mount Pearl", "Corner Brook", "Grand Falls-Windsor", "Gander"],
-        "Prince Edward Island": ["Charlottetown", "Summerside", "Stratford", "Cornwall", "Montague"],
-        "Northwest Territories": ["Yellowknife", "Hay River", "Inuvik", "Fort Smith", "Behchoko"],
-        "Yukon": ["Whitehorse", "Dawson City", "Watson Lake", "Haines Junction", "Carmacks"],
-        "Nunavut": ["Iqaluit", "Rankin Inlet", "Arviat", "Baker Lake", "Cambridge Bay"],
-        "Other": ["Other"]
-      }
-    },
-    "Germany": {
-      states: {
-        "Bavaria": ["Munich", "Nuremberg", "Augsburg", "Regensburg", "Würzburg", "Ingolstadt", "Fürth"],
-        "North Rhine-Westphalia": ["Cologne", "Düsseldorf", "Dortmund", "Essen", "Bonn", "Duisburg", "Bochum"],
-        "Baden-Württemberg": ["Stuttgart", "Mannheim", "Karlsruhe", "Freiburg", "Heidelberg", "Ulm"],
-        "Berlin": ["Berlin", "Mitte", "Charlottenburg", "Kreuzberg", "Pankow"],
-        "Hamburg": ["Hamburg", "Altona", "Eimsbüttel", "Harburg", "Wandsbek"],
-        "Hesse": ["Frankfurt", "Wiesbaden", "Kassel", "Darmstadt", "Offenbach", "Hanau"],
-        "Saxony": ["Leipzig", "Dresden", "Chemnitz", "Zwickau", "Plauen", "Görlitz"],
-        "Lower Saxony": ["Hanover", "Braunschweig", "Osnabrück", "Oldenburg", "Göttingen", "Wolfsburg"],
-        "Other": ["Other"]
-      }
-    },
-    "France": {
-      states: {
-        "Île-de-France": ["Paris", "Boulogne-Billancourt", "Saint-Denis", "Montreuil", "Argenteuil", "Versailles"],
-        "Auvergne-Rhône-Alpes": ["Lyon", "Grenoble", "Saint-Étienne", "Clermont-Ferrand", "Villeurbanne", "Valence"],
-        "Provence-Alpes-Côte d'Azur": ["Marseille", "Nice", "Toulon", "Aix-en-Provence", "Avignon", "Cannes"],
-        "Occitanie": ["Toulouse", "Montpellier", "Nîmes", "Perpignan", "Béziers", "Narbonne"],
-        "Nouvelle-Aquitaine": ["Bordeaux", "Limoges", "Poitiers", "Pau", "La Rochelle", "Angoulême"],
-        "Hauts-de-France": ["Lille", "Amiens", "Roubaix", "Tourcoing", "Dunkerque", "Calais"],
-        "Grand Est": ["Strasbourg", "Reims", "Metz", "Mulhouse", "Nancy", "Colmar"],
-        "Other": ["Other"]
-      }
-    },
-    "Singapore": {
-      states: {
-        "Central Region": ["Downtown Core", "Orchard", "Outram", "River Valley", "Singapore River", "Marina Bay"],
-        "East Region": ["Bedok", "Tampines", "Pasir Ris", "Changi", "Simei", "Eunos"],
-        "North Region": ["Woodlands", "Sembawang", "Yishun", "Mandai", "Simpang", "Admiralty"],
-        "North-East Region": ["Ang Mo Kio", "Hougang", "Serangoon", "Punggol", "Sengkang", "Bishan"],
-        "West Region": ["Jurong East", "Jurong West", "Bukit Batok", "Bukit Panjang", "Choa Chu Kang", "Clementi"],
-        "Other": ["Other"]
-      }
-    },
-    "Japan": {
-      states: {
-        "Tokyo": ["Shinjuku", "Shibuya", "Chiyoda", "Minato", "Shinagawa", "Taito", "Sumida"],
-        "Osaka": ["Osaka City", "Sakai", "Higashiosaka", "Hirakata", "Toyonaka", "Takatsuki"],
-        "Kanagawa": ["Yokohama", "Kawasaki", "Sagamihara", "Fujisawa", "Yokosuka", "Kamakura"],
-        "Aichi": ["Nagoya", "Toyota", "Okazaki", "Ichinomiya", "Kasugai", "Toyohashi"],
-        "Hokkaido": ["Sapporo", "Hakodate", "Asahikawa", "Obihiro", "Kushiro", "Otaru"],
-        "Fukuoka": ["Fukuoka City", "Kitakyushu", "Kurume", "Omuta", "Kasuga", "Chikushino"],
-        "Kyoto": ["Kyoto City", "Uji", "Kameoka", "Nagaokakyo", "Muko", "Joyo"],
-        "Other": ["Other"]
-      }
-    },
-    "China": {
-      states: {
-        "Beijing": ["Beijing City", "Chaoyang", "Haidian", "Fengtai", "Daxing", "Tongzhou"],
-        "Shanghai": ["Shanghai City", "Pudong", "Minhang", "Baoshan", "Jiading", "Songjiang"],
-        "Guangdong": ["Guangzhou", "Shenzhen", "Dongguan", "Foshan", "Zhongshan", "Zhuhai"],
-        "Zhejiang": ["Hangzhou", "Ningbo", "Wenzhou", "Shaoxing", "Jiaxing", "Jinhua"],
-        "Jiangsu": ["Nanjing", "Suzhou", "Wuxi", "Changzhou", "Nantong", "Yangzhou"],
-        "Sichuan": ["Chengdu", "Mianyang", "Deyang", "Nanchong", "Yibin", "Luzhou"],
-        "Other": ["Other"]
-      }
-    },
-    "Oman": {
-      states: {
-        "Muscat": ["Muscat City", "Seeb", "Muttrah", "Bawshar", "Amerat", "Qurum"],
-        "Dhofar": ["Salalah", "Mirbat", "Taqah", "Raysut", "Mughsayl", "Thumrait"],
-        "North Batinah": ["Sohar", "Shinas", "Saham", "Liwa", "Khaburah", "Suwaiq"],
-        "South Batinah": ["Rustaq", "Barka", "Nakhal", "Musannah", "Wadi Al Maawil", "Awabi"],
-        "North Sharqiyah": ["Ibra", "Bidiyah", "Al Mudhaibi", "Al Qabil", "Wadi Bani Khalid", "Dima"],
-        "South Sharqiyah": ["Sur", "Jaalan Bani Bu Ali", "Jaalan Bani Bu Hassan", "Al Kamil Wal Wafi", "Bani Bu Hasan"],
-        "Other": ["Other"]
-      }
-    },
-    "Other": {
-      states: {
-        "Other": ["Other"]
-      }
-    }
-  };
-
-  const countryDropdownOptions = Object.keys(locationData);
-
   useEffect(() => {
     // Scroll form into view with header offset
     setTimeout(() => {
@@ -295,57 +74,7 @@ const SignUp = ({ navigateToPage }) => {
     }, 150);
   }, []);
 
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (stateDropdownRef.current && !stateDropdownRef.current.contains(event.target)) {
-        setIsStateDropdownOpen(false);
-      }
-      if (cityDropdownRef.current && !cityDropdownRef.current.contains(event.target)) {
-        setIsCityDropdownOpen(false);
-      }
-      if (countryDropdownRef.current && !countryDropdownRef.current.contains(event.target)) {
-        setIsCountryDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  // Get states for selected country
-  const getStatesForCountry = () => {
-    if (!country || country === "Select Country") return [];
-    const countryData = locationData[country];
-    return countryData ? Object.keys(countryData.states) : [];
-  };
-
-  // Get cities for selected state
-  const getCitiesForState = () => {
-    if (!country || country === "Select Country" || !state) return [];
-    const countryData = locationData[country];
-    if (countryData && countryData.states[state]) {
-      return countryData.states[state];
-    }
-    return [];
-  };
-
-  // Reset state and city when country changes
-  useEffect(() => {
-    setState("");
-    setCity("");
-    setIsStateDropdownOpen(false);
-    setIsCityDropdownOpen(false);
-  }, [country]);
-
-  // Reset city when state changes
-  useEffect(() => {
-    setCity("");
-    setIsCityDropdownOpen(false);
-  }, [state]);
-
-  // Check password strength - minimum 8 characters with required elements
+  // Check password strength
   useEffect(() => {
     setPasswordChecks({
       length: password.length >= 8,
@@ -370,28 +99,17 @@ const SignUp = ({ navigateToPage }) => {
     }
   };
 
-  // --- Pincode requirements per country ---
-  const getPincodeRequirements = (selectedCountry) => {
-    if (!selectedCountry || selectedCountry === "Select Country") {
-      return { min: 4, max: 10, pattern: /^[A-Z0-9\s-]{4,10}$/i, placeholder: "Postal code" };
-    }
-    switch (selectedCountry) {
-      case "India":
-        return { min: 6, max: 6, pattern: /^\d{6}$/, placeholder: "6-digit pincode" };
-      case "United States":
-        return { min: 5, max: 5, pattern: /^\d{5}$/, placeholder: "5-digit ZIP code" };
-      case "United Kingdom":
-        return { min: 5, max: 7, pattern: /^[A-Z0-9\s]{5,7}$/i, placeholder: "e.g., SW1A 1AA" };
-      case "Canada":
-        return { min: 6, max: 6, pattern: /^[A-Z0-9\s]{6}$/i, placeholder: "A1A 1A1" };
-      case "Australia":
-        return { min: 4, max: 4, pattern: /^\d{4}$/, placeholder: "4-digit postcode" };
-      default:
-        return { min: 4, max: 10, pattern: /^[A-Z0-9\s-]{4,10}$/i, placeholder: "Postal code" };
-    }
+  // Generic pincode validation (no country‑specific rules)
+  const getPincodeRequirements = () => {
+    return {
+      min: 2,
+      max: 10,
+      pattern: /^[A-Z0-9\s-]{2,10}$/i,
+      placeholder: "Postal code / Pincode"
+    };
   };
 
-  const pincodeReq = getPincodeRequirements(country);
+  const pincodeReq = getPincodeRequirements();
 
   const isValidPincode = (code) => {
     if (!code) return false;
@@ -399,12 +117,6 @@ const SignUp = ({ navigateToPage }) => {
     return pincodeReq.pattern.test(trimmed) && trimmed.length >= pincodeReq.min && trimmed.length <= pincodeReq.max;
   };
 
-  // Reset pincode when country changes
-  useEffect(() => {
-    setPincode("");
-  }, [country]);
-
-  // Handle pincode change
   const handlePincodeChange = (e) => {
     const value = e.target.value;
     setPincode(value);
@@ -414,25 +126,6 @@ const SignUp = ({ navigateToPage }) => {
   const isValidEmail = (email) => {
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     return emailRegex.test(email);
-  };
-
-  // Handle country change and update country code
-  const handleCountryChange = (selectedCountry) => {
-    setCountry(selectedCountry);
-    setIsCountryDropdownOpen(false);
-    if (selectedCountry === "India") setCountryCode("+91");
-    else if (selectedCountry === "United States") setCountryCode("+1");
-    else if (selectedCountry === "United Kingdom") setCountryCode("+44");
-    else if (selectedCountry === "UAE") setCountryCode("+971");
-    else if (selectedCountry === "Australia") setCountryCode("+61");
-    else if (selectedCountry === "Canada") setCountryCode("+1");
-    else if (selectedCountry === "Oman") setCountryCode("+968");
-    else if (selectedCountry === "Germany") setCountryCode("+49");
-    else if (selectedCountry === "France") setCountryCode("+33");
-    else if (selectedCountry === "Singapore") setCountryCode("+65");
-    else if (selectedCountry === "Japan") setCountryCode("+81");
-    else if (selectedCountry === "China") setCountryCode("+86");
-    else setCountryCode("+1");
   };
 
   // Handle Enter key press to move to next field
@@ -453,18 +146,20 @@ const SignUp = ({ navigateToPage }) => {
           }
         },
         'phoneNumber': () => {
-          setIsCountryDropdownOpen(true);
-          setActiveField('country');
+          if (countryRef.current) {
+            countryRef.current.focus();
+            setActiveField('country');
+          }
         },
         'country': () => {
-          if (getStatesForCountry().length > 0) {
-            setIsStateDropdownOpen(true);
+          if (stateRef.current) {
+            stateRef.current.focus();
             setActiveField('state');
           }
         },
         'state': () => {
-          if (getCitiesForState().length > 0) {
-            setIsCityDropdownOpen(true);
+          if (cityRef.current) {
+            cityRef.current.focus();
             setActiveField('city');
           }
         },
@@ -529,27 +224,21 @@ const SignUp = ({ navigateToPage }) => {
         throw new Error("Password must be at least 8 characters and include uppercase, lowercase, number, and special character");
       }
 
-      // Validate country selection
-      if (!country || country === "Select Country") {
-        throw new Error("Please select your country");
+      // Validate manual location fields
+      if (!country.trim()) {
+        throw new Error("Please enter your country");
       }
-
-      // Validate state/province
-      if (!state) {
-        throw new Error("Please select your state or province");
+      if (!state.trim()) {
+        throw new Error("Please enter your state or province");
       }
-
-      // Validate city/town
-      if (!city) {
-        throw new Error("Please select your city or town");
+      if (!city.trim()) {
+        throw new Error("Please enter your city or town");
       }
-
-      // Validate pincode with country rules
       if (!pincode.trim()) {
         throw new Error("Please enter your pincode or ZIP code");
       }
       if (!isValidPincode(pincode)) {
-        throw new Error(`Invalid format for ${country}. ${pincodeReq.placeholder} required.`);
+        throw new Error(`Invalid format. ${pincodeReq.placeholder} must be 2–10 characters (letters, numbers, spaces, hyphens).`);
       }
 
       // Validate phone number
@@ -599,12 +288,12 @@ const SignUp = ({ navigateToPage }) => {
       const userRef = ref(db, `users/${tempUserId}`);
       await set(userRef, {
         email: normalizedEmail,
-        password: password, // stored temporarily for verification on signin
+        password: password,
         displayName: displayName.trim(),
         fullName: displayName.trim(),
-        country: country,
-        state: state,
-        city: city,
+        country: country.trim(),
+        state: state.trim(),
+        city: city.trim(),
         pincode: pincode.trim(),
         phone: fullPhone,
         phoneNumber: {
@@ -613,16 +302,16 @@ const SignUp = ({ navigateToPage }) => {
           fullNumber: fullPhone
         },
         address: {
-          country,
-          state: state,
-          city: city,
+          country: country.trim(),
+          state: state.trim(),
+          city: city.trim(),
           pincode: pincode.trim()
         },
         role: "user",
         isAdmin: false,
         isVerified: false,
         isActive: true,
-        accountStatus: "pending", // Pending – Firebase Auth not created yet
+        accountStatus: "pending",
         createdAt: new Date().toISOString(),
         tempUserId: tempUserId
       });
@@ -633,10 +322,10 @@ const SignUp = ({ navigateToPage }) => {
       localStorage.removeItem('rememberedEmail');
       localStorage.removeItem('rememberedPassword');
 
-      // Redirect to signin page with NO pre-filled data
+      // Redirect to signin page
       setError("");
       setTimeout(() => {
-        navigateToPage("signin"); // no email passed
+        navigateToPage("signin");
       }, 500);
 
     } catch (err) {
@@ -656,27 +345,19 @@ const SignUp = ({ navigateToPage }) => {
 
   // Check if form is valid for submission
   const isFormValid = () => {
-    const states = getStatesForCountry();
-    const cities = getCitiesForState();
     return (
       displayName.trim() &&
       email &&
       isValidEmail(email) &&
       phoneNumber.length === getCurrentCountryLength() &&
-      country &&
-      country !== "Select Country" &&
-      state &&
-      states.includes(state) &&
-      city &&
-      cities.includes(city) &&
+      country.trim() &&
+      state.trim() &&
+      city.trim() &&
       isValidPincode(pincode) &&
       isPasswordStrong() &&
       password === confirmPassword
     );
   };
-
-  const states = getStatesForCountry();
-  const cities = getCitiesForState();
 
   // Calculate password strength percentage
   const getPasswordStrength = () => {
@@ -818,150 +499,79 @@ const SignUp = ({ navigateToPage }) => {
             </div>
           </div>
 
-          {/* Country Dropdown */}
-          <div className="mb-3 relative" ref={countryDropdownRef}>
+          {/* Country (manual text input) */}
+          <div className="mb-3">
             <label className="block text-light mb-1 font-medium text-sm">Country *</label>
-            <div
-              className={`w-full px-3 py-2 bg-dark border rounded-lg text-light cursor-pointer flex justify-between items-center text-sm ${
-                activeField === 'country' ? 'border-secondary' : 'border-gray-600'
-              }`}
-              onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
+            <input
+              ref={countryRef}
+              type="text"
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
               onKeyDown={(e) => handleKeyDown(e, 'country')}
               onFocus={() => handleFocus('country')}
-              tabIndex={0}
-              role="button"
-            >
-              <span className={!country ? "text-gray-500" : "text-light"}>
-                {country || "Select Country"}
-              </span>
-              <i className={`fas fa-chevron-${isCountryDropdownOpen ? 'up' : 'down'} text-gray-400 text-xs transition-transform`}></i>
-            </div>
-            {isCountryDropdownOpen && (
-              <div className="absolute z-10 w-full mt-1 bg-dark border border-secondary rounded-lg max-h-60 overflow-y-auto shadow-lg">
-                {countryDropdownOptions.map((countryOption) => (
-                  <div
-                    key={countryOption}
-                    className={`px-3 py-2 cursor-pointer hover:bg-secondary/20 text-light text-sm ${
-                      country === countryOption ? 'bg-secondary/30' : ''
-                    }`}
-                    onClick={() => handleCountryChange(countryOption)}
-                  >
-                    {countryOption}
-                  </div>
-                ))}
-              </div>
-            )}
+              className={`w-full px-3 py-2 bg-dark border rounded-lg text-light focus:outline-none transition-colors text-sm ${
+                activeField === 'country' ? 'border-secondary' : 'border-gray-600'
+              }`}
+              placeholder="Enter your country"
+              required
+              disabled={loading}
+              autoComplete="country"
+            />
             <div className="mt-1 text-xs text-light/70 flex justify-between">
               <span>Press Enter to go to state</span>
-              <span>{country ? '✓' : ''}</span>
+              <span>{country.trim() ? '✓' : ''}</span>
             </div>
           </div>
 
-          {/* State/Province Dropdown */}
-          <div className="mb-3 relative" ref={stateDropdownRef}>
+          {/* State/Province (manual text input) */}
+          <div className="mb-3">
             <label className="block text-light mb-1 font-medium text-sm">State/Province *</label>
-            <div
-              className={`w-full px-3 py-2 bg-dark border rounded-lg text-light cursor-pointer flex justify-between items-center text-sm ${
-                !country 
-                  ? 'opacity-50 cursor-not-allowed border-gray-600' 
-                  : activeField === 'state' ? 'border-secondary' : 'border-gray-600'
-              }`}
-              onClick={() => {
-                if (country && states.length > 0) {
-                  setIsStateDropdownOpen(!isStateDropdownOpen);
-                }
-              }}
+            <input
+              ref={stateRef}
+              type="text"
+              value={state}
+              onChange={(e) => setState(e.target.value)}
               onKeyDown={(e) => handleKeyDown(e, 'state')}
               onFocus={() => handleFocus('state')}
-              tabIndex={country ? 0 : -1}
-              role="button"
-            >
-              <span className={!state ? "text-gray-500" : "text-light"}>
-                {!country 
-                  ? "Select a country first" 
-                  : state || "Select State/Province"}
-              </span>
-              {country && states.length > 0 && (
-                <i className={`fas fa-chevron-${isStateDropdownOpen ? 'up' : 'down'} text-gray-400 text-xs transition-transform`}></i>
-              )}
-            </div>
-            {isStateDropdownOpen && states.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-dark border border-secondary rounded-lg max-h-60 overflow-y-auto shadow-lg">
-                {states.map((stateOption) => (
-                  <div
-                    key={stateOption}
-                    className={`px-3 py-2 cursor-pointer hover:bg-secondary/20 text-light text-sm ${
-                      state === stateOption ? 'bg-secondary/30' : ''
-                    }`}
-                    onClick={() => {
-                      setState(stateOption);
-                      setIsStateDropdownOpen(false);
-                    }}
-                  >
-                    {stateOption}
-                  </div>
-                ))}
-              </div>
-            )}
+              className={`w-full px-3 py-2 bg-dark border rounded-lg text-light focus:outline-none transition-colors text-sm ${
+                activeField === 'state' ? 'border-secondary' : 'border-gray-600'
+              }`}
+              placeholder="Enter your state or province"
+              required
+              disabled={loading}
+              autoComplete="address-level1"
+            />
             <div className="mt-1 text-xs text-light/70 flex justify-between">
               <span>Press Enter to go to city</span>
-              <span>{state ? '✓' : ''}</span>
+              <span>{state.trim() ? '✓' : ''}</span>
             </div>
           </div>
 
-          {/* City/Town Dropdown */}
-          <div className="mb-3 relative" ref={cityDropdownRef}>
+          {/* City/Town (manual text input) */}
+          <div className="mb-3">
             <label className="block text-light mb-1 font-medium text-sm">City/Town *</label>
-            <div
-              className={`w-full px-3 py-2 bg-dark border rounded-lg text-light cursor-pointer flex justify-between items-center text-sm ${
-                !state 
-                  ? 'opacity-50 cursor-not-allowed border-gray-600' 
-                  : activeField === 'city' ? 'border-secondary' : 'border-gray-600'
-              }`}
-              onClick={() => {
-                if (state && cities.length > 0) {
-                  setIsCityDropdownOpen(!isCityDropdownOpen);
-                }
-              }}
+            <input
+              ref={cityRef}
+              type="text"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
               onKeyDown={(e) => handleKeyDown(e, 'city')}
               onFocus={() => handleFocus('city')}
-              tabIndex={state ? 0 : -1}
-              role="button"
-            >
-              <span className={!city ? "text-gray-500" : "text-light"}>
-                {!state 
-                  ? "Select a state first" 
-                  : city || "Select City/Town"}
-              </span>
-              {state && cities.length > 0 && (
-                <i className={`fas fa-chevron-${isCityDropdownOpen ? 'up' : 'down'} text-gray-400 text-xs transition-transform`}></i>
-              )}
-            </div>
-            {isCityDropdownOpen && cities.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-dark border border-secondary rounded-lg max-h-60 overflow-y-auto shadow-lg">
-                {cities.map((cityOption) => (
-                  <div
-                    key={cityOption}
-                    className={`px-3 py-2 cursor-pointer hover:bg-secondary/20 text-light text-sm ${
-                      city === cityOption ? 'bg-secondary/30' : ''
-                    }`}
-                    onClick={() => {
-                      setCity(cityOption);
-                      setIsCityDropdownOpen(false);
-                    }}
-                  >
-                    {cityOption}
-                  </div>
-                ))}
-              </div>
-            )}
+              className={`w-full px-3 py-2 bg-dark border rounded-lg text-light focus:outline-none transition-colors text-sm ${
+                activeField === 'city' ? 'border-secondary' : 'border-gray-600'
+              }`}
+              placeholder="Enter your city or town"
+              required
+              disabled={loading}
+              autoComplete="address-level2"
+            />
             <div className="mt-1 text-xs text-light/70 flex justify-between">
               <span>Press Enter to go to pincode</span>
-              <span>{city ? '✓' : ''}</span>
+              <span>{city.trim() ? '✓' : ''}</span>
             </div>
           </div>
 
-          {/* Pincode/ZIP Code with country rules */}
+          {/* Pincode/ZIP Code */}
           <div className="mb-3">
             <label className="block text-light mb-1 font-medium text-sm">Pincode/ZIP Code *</label>
             <input
@@ -989,7 +599,7 @@ const SignUp = ({ navigateToPage }) => {
             {pincode && !isValidPincode(pincode) && (
               <p className="text-yellow-400 text-xs mt-1 flex items-center">
                 <i className="fas fa-info-circle mr-1 text-xs"></i>
-                {pincodeReq.placeholder}
+                {pincodeReq.placeholder} (2–10 characters, letters/numbers/spaces/hyphens)
               </p>
             )}
           </div>
@@ -1023,32 +633,31 @@ const SignUp = ({ navigateToPage }) => {
               </button>
             </div>
             
-  {/* Password strength alert (MOVED HERE) */}
-  {password && !isPasswordStrong() && (
-    <p className="text-yellow-400 text-xs mt-1 flex items-center">
-      <i className="fas fa-info-circle mr-1 text-xs"></i>
-      Password needs to be stronger
-    </p>
-  )}
+            {password && !isPasswordStrong() && (
+              <p className="text-yellow-400 text-xs mt-1 flex items-center">
+                <i className="fas fa-info-circle mr-1 text-xs"></i>
+                Password needs to be stronger
+              </p>
+            )}
 
-  {password && (
-    <div className="mt-2">
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-light/70">Password strength:</span>
-        <span className="text-xs font-medium">
-          {passwordStrength < 40 ? 'Weak' : passwordStrength < 80 ? 'Medium' : 'Strong'}
-        </span>
-      </div>
-      <div className="w-full h-1.5 bg-gray-700 rounded-full overflow-hidden">
-        <div 
-          className={`h-full transition-all duration-300 ${
-            passwordStrength < 40 ? 'bg-red-500' : passwordStrength < 80 ? 'bg-yellow-500' : 'bg-green-500'
-          }`}
-          style={{ width: `${passwordStrength}%` }}
-        ></div>
-      </div>
-    </div>
-  )}
+            {password && (
+              <div className="mt-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-light/70">Password strength:</span>
+                  <span className="text-xs font-medium">
+                    {passwordStrength < 40 ? 'Weak' : passwordStrength < 80 ? 'Medium' : 'Strong'}
+                  </span>
+                </div>
+                <div className="w-full h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-300 ${
+                      passwordStrength < 40 ? 'bg-red-500' : passwordStrength < 80 ? 'bg-yellow-500' : 'bg-green-500'
+                    }`}
+                    style={{ width: `${passwordStrength}%` }}
+                  ></div>
+                </div>
+              </div>
+            )}
             <div className="mt-1 text-xs text-light/70 flex justify-between">
               <span>
                 {password.length === 0 
@@ -1106,20 +715,19 @@ const SignUp = ({ navigateToPage }) => {
                 disabled={loading}
                 autoComplete="new-password"
               />
-               </div>
+            </div>
 
-              <div className="mt-1 text-xs text-light/70 flex justify-between">
-             <span>Press Enter to submit form</span>
-            <span>{confirmPassword && password === confirmPassword && isPasswordStrong() ? '✓' : ''}</span>
+            <div className="mt-1 text-xs text-light/70 flex justify-between">
+              <span>Press Enter to submit form</span>
+              <span>{confirmPassword && password === confirmPassword && isPasswordStrong() ? '✓' : ''}</span>
             </div>
 
             {confirmPassword && password !== confirmPassword && (
-            <p className="text-red-400 text-xs mt-1 flex items-center">
-             <i className="fas fa-exclamation-triangle mr-1 text-xs"></i>
-            Passwords do not match
-            </p>
-               )}
-
+              <p className="text-red-400 text-xs mt-1 flex items-center">
+                <i className="fas fa-exclamation-triangle mr-1 text-xs"></i>
+                Passwords do not match
+              </p>
+            )}
           </div>
 
           {/* Info Message */}

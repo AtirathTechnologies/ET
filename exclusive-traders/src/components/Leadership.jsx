@@ -22,8 +22,8 @@ const Leadership = () => {
   ];
 
   return (
-    <section className="py-16 lg:py-24 bg-gradient-to-b from-[#0a1a2f] to-[#0f2b4a]">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
+    <section className="pb-16 pt-0 lg:pb-24 lg:pt-0 bg-gradient-to-b from-[#0a1a2f] to-[#0f2b4a]">
+      <div className="container mx-auto px-4">
         {/* Title */}
         <h2 className="text-4xl lg:text-5xl font-bold text-center mb-16 lg:mb-20">
           <span className="bg-gradient-to-r from-cyan-400 to-cyan-200 bg-clip-text text-transparent">

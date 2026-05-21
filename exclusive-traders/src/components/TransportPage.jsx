@@ -2,7 +2,197 @@
 import React, { useState } from 'react';
 import { Truck, MapPin, ArrowLeft, Package } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { transportData } from '../data/ProductData';
+
+// ============================================
+// TRANSPORT DATA - Moved here from ProductData.js
+// ============================================
+
+export const stateOptions = [
+  { value: "andhraPradesh", label: "Andhra Pradesh" },
+  { value: "gujarat", label: "Gujarat" },
+  { value: "haryana", label: "Haryana" },
+  { value: "karnataka", label: "Karnataka" },
+  { value: "kerala", label: "Kerala" },
+  { value: "madhyaPradesh", label: "Madhya Pradesh" },
+  { value: "maharashtra", label: "Maharashtra" },
+  { value: "punjab", label: "Punjab" },
+  { value: "rajasthan", label: "Rajasthan" },
+  { value: "tamilnadu", label: "Tamil Nadu" },
+  { value: "uttarPradesh", label: "Uttar Pradesh" },
+  { value: "westBengal", label: "West Bengal" }
+];
+
+const transportData = {
+  punjab: {
+    name: 'Punjab',
+    icon: '/ProductsImg/Transport/Punjab.webp',
+    default_min: 28,
+    default_max: 38,
+    destinations: [
+      { port: 'Kandla Port', prices: { kg: '28-32', liter: '25-29', piece: '35-40' } },
+      { port: 'Mundra Port', prices: { kg: '30-35', liter: '27-32', piece: '38-43' } },
+      { port: 'Nhava Sheva Port', prices: { kg: '32-38', liter: '29-35', piece: '40-46' } }
+    ]
+  },
+  haryana: {
+    name: 'Haryana',
+    icon: '/ProductsImg/Transport/haryana.webp',
+    default_min: 25,
+    default_max: 33,
+    destinations: [
+      { location: 'Cheeka - Kandla Port', prices: { kg: '25-29', liter: '22-26', piece: '32-37' } },
+      { location: 'Cheeka - Mundra Port', prices: { kg: '27-32', liter: '24-29', piece: '34-40' } },
+      { location: 'Sonipat/Kamal - Mundra Port', prices: { kg: '28-33', liter: '25-30', piece: '35-41' } },
+      { location: 'Tohana/Sirsa - Kandla Port', prices: { kg: '26-30', liter: '23-27', piece: '33-38' } },
+      { location: 'Tohana/Sirsa - Mundra Port', prices: { kg: '28-33', liter: '25-30', piece: '35-41' } }
+    ]
+  },
+  rajasthan: {
+    name: 'Rajasthan',
+    icon: '/ProductsImg/Transport/Rajasthan.webp',
+    default_min: 22,
+    default_max: 30,
+    destinations: [
+      { location: 'Bundi - Kandla Port', prices: { kg: '22-26', liter: '19-23', piece: '29-34' } },
+      { location: 'Bundi - Mundra Port', prices: { kg: '25-29', liter: '22-26', piece: '32-37' } },
+      { location: 'Kota - Kandla Port', prices: { kg: '23-27', liter: '20-24', piece: '30-35' } },
+      { location: 'Kota - Mundra Port', prices: { kg: '26-30', liter: '23-27', piece: '33-38' } }
+    ]
+  },
+  madhyaPradesh: {
+    name: 'Madhya Pradesh',
+    icon: '/ProductsImg/Transport/Madhya_Pradesh.webp',
+    default_min: 20,
+    default_max: 29,
+    destinations: [
+      { location: 'Mandideep - Kandla Port', prices: { kg: '20-24', liter: '17-21', piece: '27-32' } },
+      { location: 'Mandideep - Mundra Port', prices: { kg: '22-26', liter: '19-23', piece: '29-34' } },
+      { location: 'Mandideep - Nhava Sheva', prices: { kg: '24-28', liter: '21-25', piece: '31-36' } },
+      { location: 'Pipariya - Kandla Port', prices: { kg: '21-25', liter: '18-22', piece: '28-33' } },
+      { location: 'Pipariya - Mundra Port', prices: { kg: '23-27', liter: '20-24', piece: '30-35' } },
+      { location: 'Pipariya - Nhava Sheva', prices: { kg: '25-29', liter: '22-26', piece: '32-37' } }
+    ]
+  },
+  uttarPradesh: {
+    name: 'Uttar Pradesh',
+    icon: '/ProductsImg/Transport/Uttar_Pradesh.webp',
+    default_min: 23,
+    default_max: 34,
+    destinations: [
+      { location: 'Agra - Kandla Port', prices: { kg: '23-27', liter: '20-24', piece: '30-35' } },
+      { location: 'Agra - Mundra Port', prices: { kg: '25-30', liter: '22-27', piece: '32-38' } },
+      { location: 'Agra - Nhava Sheva', prices: { kg: '27-32', liter: '24-29', piece: '34-40' } },
+      { location: 'Ghaziabad - Kandla Port', prices: { kg: '25-29', liter: '22-26', piece: '32-37' } },
+      { location: 'Ghaziabad - Mundra Port', prices: { kg: '27-32', liter: '24-29', piece: '34-40' } },
+      { location: 'Ghaziabad - Nhava Sheva', prices: { kg: '29-34', liter: '26-31', piece: '36-42' } },
+      { location: 'Kanpur - Kandla Port', prices: { kg: '24-28', liter: '21-25', piece: '31-36' } },
+      { location: 'Kanpur - Mundra Port', prices: { kg: '26-31', liter: '23-28', piece: '33-39' } },
+      { location: 'Kanpur - Nhava Sheva', prices: { kg: '28-33', liter: '25-30', piece: '35-41' } }
+    ]
+  },
+  gujarat: {
+    name: 'Gujarat',
+    icon: '/ProductsImg/Transport/Gujarat.webp',
+    default_min: 18,
+    default_max: 24,
+    destinations: [
+      { port: 'Kandla Port(Deendayal Port)', prices: { kg: '18-22', liter: '15-19', piece: '25-30' } },
+      { port: 'Mundra Port', prices: { kg: '20-24', liter: '17-21', piece: '27-32' } }
+    ]
+  },
+  westBengal: {
+    name: 'West Bengal',
+    icon: '/ProductsImg/Transport/West_Bengal.webp',
+    default_min: 15,
+    default_max: 20,
+    destinations: [
+      { port: 'Haldia Port', prices: { kg: '16-20', liter: '13-17', piece: '23-28' } },
+      { port: 'Syamaprasad Mookerjee Port(Kolkata)', prices: { kg: '15-18', liter: '12-15', piece: '22-26' } }
+    ]
+  },
+  andhraPradesh: {
+    name: 'Andhra Pradesh',
+    icon: '/ProductsImg/Transport/Andhra_Pradesh.webp',
+    default_min: 15,
+    default_max: 22,
+    destinations: [
+      { port: 'Gangavaram Port', prices: { kg: '17-21', liter: '14-18', piece: '24-29' } },
+      { port: 'Kakinada Port', prices: { kg: '15-19', liter: '12-16', piece: '22-27' } },
+      { port: 'Krishnapatnam Port', prices: { kg: '18-22', liter: '15-19', piece: '25-30' } },
+      { port: 'Viskapatanam Port', prices: { kg: '16-20', liter: '13-17', piece: '23-28' } }
+    ]
+  },
+  tamilnadu: {
+    name: 'Tamil Nadu',
+    icon: '/ProductsImg/Transport/chennai.webp',
+    default_min: 18,
+    default_max: 24,
+    destinations: [
+      { port: 'Chennai Port', prices: { kg: '18-22', liter: '15-19', piece: '25-30' } },
+      { port: 'Kamarajar Port', prices: { kg: '19-23', liter: '16-20', piece: '26-31' } },
+      { port: 'Thoothukudi Port', prices: { kg: '20-24', liter: '17-21', piece: '27-32' } }
+    ]
+  },
+  karnataka: {
+    name: 'Karnataka',
+    icon: '/ProductsImg/Transport/Mangalore.webp',
+    default_min: 20,
+    default_max: 24,
+    destinations: [
+      { port: 'New Mangalore Port', prices: { kg: '20-24', liter: '17-21', piece: '27-32' } }
+    ]
+  },
+  maharashtra: {
+    name: 'Maharashtra',
+    icon: '/ProductsImg/Transport/JNPT.webp',
+    default_min: 17,
+    default_max: 23,
+    destinations: [
+      { port: 'Jawaharlal Nehru Port Trust (JNPT)', prices: { kg: '17-21', liter: '14-18', piece: '24-29' } },
+      { port: 'Mumbai Port', prices: { kg: '18-22', liter: '15-19', piece: '25-30' } },
+      { port: 'Vadhavan Port', prices: { kg: '19-23', liter: '16-20', piece: '26-31' } }
+    ]
+  },
+  kerala: {
+    name: 'Kerala',
+    icon: '/ProductsImg/Transport/cochin.webp',
+    default_min: 19,
+    default_max: 24,
+    destinations: [
+      { port: 'Cochin Port (Kochi)', prices: { kg: '19-23', liter: '16-20', piece: '26-31' } },
+      { port: 'Vizhinjam International Seaport (Thiruvananthapuram)', prices: { kg: '20-24', liter: '17-21', piece: '27-32' } }
+    ]
+  }
+};
+
+const getPortOptions = (selectedState) => {
+  if (!selectedState || !transportData[selectedState]) return [];
+  const ports = transportData[selectedState].destinations.map(destination => ({
+    value: destination.port || destination.location,
+    label: destination.port || destination.location,
+    prices: destination.prices
+  }));
+  return ports.sort((a, b) => a.label.localeCompare(b.label));
+};
+
+const getTransportPrice = (state, port, unitType) => {
+  const stateData = transportData[state];
+  if (!stateData) return "0-0";
+  if (port) {
+    const destination = stateData.destinations.find(d => 
+      (d.port && d.port.toLowerCase() === port.toLowerCase()) || 
+      (d.location && d.location.toLowerCase() === port.toLowerCase())
+    );
+    if (destination && destination.prices) {
+      return destination.prices[unitType] || `${stateData.default_min || 20}-${stateData.default_max || 30}`;
+    }
+  }
+  return `${stateData.default_min || 20}-${stateData.default_max || 30}`;
+};
+
+// ============================================
+// TRANSPORT PAGE COMPONENT
+// ============================================
 
 const TransportPage = () => {
   const navigate = useNavigate();
@@ -22,25 +212,24 @@ const TransportPage = () => {
   };
 
   const displayPrice = (price) => `₹ ${price}`;
-
   const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1581579438747-1dc8d17bbce4?w=600&auto=format';
 
   return (
     <div className="transport-page">
       <div className="container">
-        {/* Back button – now in normal flow */}
-        <div className="top-bar">
-          <button className="back-button" onClick={handleBack}>
-            <ArrowLeft size={20} />
-            <span>Back</span>
-          </button>
-        </div>
-
-        {/* Header */}
-        <div className="header">
-          <div className="header-content">
-            <Truck className="truck-icon" size={48} />
-            <h1>Transportation Pricing</h1>
+        <div className="header-wrapper">
+          <div className="header-top-row">
+            <div className="back-btn-container">
+              <button className="back-button" onClick={handleBack}>
+                <ArrowLeft size={20} />
+                <span>Back</span>
+              </button>
+            </div>
+            <div className="header-content">
+              <Truck className="truck-icon" size={48} />
+              <h1>Transportation Pricing</h1>
+            </div>
+            <div className="spacer"></div>
           </div>
           <p className="subtitle">Competitive freight rates across all major states and ports in India</p>
         </div>
@@ -138,7 +327,8 @@ const TransportPage = () => {
         .transport-page {
           min-height: 100vh;
           background: linear-gradient(135deg, #0f172a, #1e293b, #2d3a4e);
-          padding-top: 20px;
+          margin-top: -1rem;
+          padding-top: 0px;
           font-family: 'Inter', sans-serif;
         }
 
@@ -148,8 +338,23 @@ const TransportPage = () => {
           padding: 0 20px;
         }
 
-        .top-bar {
-          margin-bottom: 20px;
+        .header-wrapper {
+          margin-bottom: 48px;
+          padding-top: 30px;
+        }
+        .header-top-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 12px;
+        }
+        .back-btn-container {
+          flex: 1;
+          display: flex;
+          justify-content: flex-start;
+        }
+        .spacer {
+          flex: 1;
         }
         .back-button {
           background: rgba(15, 23, 42, 0.8);
@@ -171,21 +376,17 @@ const TransportPage = () => {
           transform: translateX(-5px);
         }
 
-        .header {
-          text-align: center;
-          margin-bottom: 48px;
-        }
         .header-content {
+          flex: 2;
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 12px;
-          margin-bottom: 12px;
         }
         .truck-icon {
           color: #00F5C8;
         }
-        .header h1 {
+        .header-content h1 {
           font-size: 2.8rem;
           font-weight: 800;
           color: white;
@@ -197,6 +398,7 @@ const TransportPage = () => {
           color: rgba(255, 255, 255, 0.7);
           max-width: 800px;
           margin: 0 auto;
+          text-align: center;
         }
 
         .states-grid {
@@ -213,7 +415,17 @@ const TransportPage = () => {
           .states-grid {
             grid-template-columns: repeat(2, 1fr);
           }
-          .header h1 {
+          .header-top-row {
+            flex-direction: column;
+            align-items: center;
+          }
+          .back-btn-container {
+            margin-bottom: 16px;
+          }
+          .spacer {
+            display: none;
+          }
+          .header-content h1 {
             font-size: 2rem;
           }
           .truck-icon {
@@ -490,4 +702,4 @@ const TransportPage = () => {
   );
 };
 
-export default TransportPage;
+export default TransportPage; 

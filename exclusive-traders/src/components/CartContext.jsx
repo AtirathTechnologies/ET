@@ -1,107 +1,139 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+// src/components/CartContext.jsx
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { ref, set, onValue } from 'firebase/database';
+import { db as mainDatabase } from '../firebase';
 
 const CartContext = createContext();
 
-const cartReducer = (state, action) => {
-  switch (action.type) {
-    case 'ADD_TO_CART':
-      const existingItem = state.items.find(item => item.id === action.payload.id);
-      if (existingItem) {
-        return {
-          ...state,
-          items: state.items.map(item =>
-            item.id === action.payload.id
-              ? { ...item, quantity: item.quantity + 1 }
-              : item
-          ),
-        };
-      }
-      return {
-        ...state,
-        items: [...state.items, { ...action.payload, quantity: 1 }],
-      };
-    case 'UPDATE_QUANTITY':
-      return {
-        ...state,
-        items: state.items.map(item =>
-          item.id === action.payload.id
-            ? { ...item, quantity: action.payload.quantity }
-            : item
-        ).filter(item => item.quantity > 0),
-      };
-    case 'REMOVE_FROM_CART':
-      return {
-        ...state,
-        items: state.items.filter(item => item.id !== action.payload.id),
-      };
-    case 'CLEAR_CART':
-      return { ...state, items: [] };
-    case 'LOAD_CART':
-      return { ...state, items: action.payload || [] };
-    default:
-      return state;
+export const useCart = () => useContext(CartContext);
+
+// Helper to get or create a stable session ID (stored only in localStorage as a key, not the cart)
+const getSessionId = () => {
+  let sessionId = localStorage.getItem('cartSessionId');
+  if (!sessionId) {
+    sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('cartSessionId', sessionId);
   }
+  return sessionId;
 };
 
-export const CartProvider = ({ children }) => {
-  const [state, dispatch] = useReducer(cartReducer, { items: [] });
-
-  useEffect(() => {
-    const savedCart = localStorage.getItem('cart');
-    if (savedCart) {
-      try {
-        dispatch({ type: 'LOAD_CART', payload: JSON.parse(savedCart) });
-      } catch (error) {
-        console.error('Error loading cart from localStorage:', error);
-      }
+export const CartProvider = ({ children, user = null }) => {
+  const [cartItems, setCartItems] = useState(() => {
+    try {
+      const cached = localStorage.getItem('cart_cache');
+      return cached ? JSON.parse(cached) : [];
+    } catch (e) {
+      return [];
     }
-  }, []);
+  });
+  const [loading, setLoading] = useState(() => !localStorage.getItem('cart_cache'));
+  const [currentUser, setCurrentUser] = useState(user);
 
+  // Update currentUser when prop changes
   useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(state.items));
-  }, [state.items]);
+    setCurrentUser(user);
+  }, [user]);
 
-  const addToCart = (product) => {
-    dispatch({ type: 'ADD_TO_CART', payload: product });
+  // Determine the Firebase path: if user is logged in, use their UID; otherwise use session ID
+  const getCartPath = () => {
+    if (currentUser) return `cart/${currentUser.uid}`;
+    return `cart/${getSessionId()}`;
   };
 
-  const updateQuantity = (id, quantity) => {
-    dispatch({ type: 'UPDATE_QUANTITY', payload: { id, quantity } });
+  useEffect(() => {
+    // Only show loading if we don't have items to show yet
+    if (cartItems.length === 0) {
+      setLoading(true);
+    }
+    const cartRef = ref(mainDatabase, getCartPath());
+    const unsubscribe = onValue(cartRef, (snapshot) => {
+      const data = snapshot.val();
+      const items = data?.items || [];
+      setCartItems(items);
+      localStorage.setItem('cart_cache', JSON.stringify(items));
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, [currentUser]); // Re-run when user changes (login/logout)
+
+  const saveCart = async (items) => {
+    const cartRef = ref(mainDatabase, getCartPath());
+    await set(cartRef, { items, updatedAt: Date.now() });
+  };
+
+  const addToCart = (item) => {
+    setCartItems(prev => {
+      const existingIndex = prev.findIndex(
+        i => i.productId === item.productId && i.selectedPacking === item.selectedPacking && i.grade === item.grade
+      );
+      let newItems;
+      if (existingIndex !== -1) {
+        const updated = [...prev];
+        const existingItem = updated[existingIndex];
+        const newQuantity = existingItem.quantity + item.quantity;
+        const newTotalPrice = (existingItem.unitPrice + (existingItem.packingPrice || 0)) * newQuantity;
+        updated[existingIndex] = { ...existingItem, quantity: newQuantity, totalPrice: newTotalPrice };
+        newItems = updated;
+      } else {
+        newItems = [...prev, {
+          ...item,
+          id: Date.now(),
+          quantity: Number(item.quantity),
+          unitPrice: Number(item.unitPrice),
+          packingPrice: Number(item.packingPrice || 0),
+          totalPrice: Number(item.totalPrice)
+        }];
+      }
+      saveCart(newItems);
+      return newItems;
+    });
   };
 
   const removeFromCart = (id) => {
-    dispatch({ type: 'REMOVE_FROM_CART', payload: { id } });
+    setCartItems(prev => {
+      const newItems = prev.filter(item => item.id !== id);
+      saveCart(newItems);
+      return newItems;
+    });
+  };
+
+  const updateQuantity = (id, newQuantity) => {
+    if (newQuantity < 1) return;
+    setCartItems(prev => {
+      const newItems = prev.map(item => {
+        if (item.id === id) {
+          const total = (item.unitPrice + (item.packingPrice || 0)) * newQuantity;
+          return { ...item, quantity: newQuantity, totalPrice: total };
+        }
+        return item;
+      });
+      saveCart(newItems);
+      return newItems;
+    });
   };
 
   const clearCart = () => {
-    dispatch({ type: 'CLEAR_CART' });
+    setCartItems([]);
+    const cartRef = ref(mainDatabase, getCartPath());
+    set(cartRef, null);
   };
 
-  const getTotalItems = () => state.items.reduce((sum, item) => sum + item.quantity, 0);
-
-  const getTotalPrice = () => {
-    return state.items.reduce((sum, item) => sum + (parseFloat(item.price || 0) * item.quantity), 0).toFixed(2);
-  };
+  const getCartTotal = () => cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
+  const getCartCount = () => cartItems.reduce((count, item) => count + item.quantity, 0);
 
   return (
-    <CartContext.Provider value={{
-      items: state.items,
-      addToCart,
-      updateQuantity,
-      removeFromCart,
-      clearCart,
-      getTotalItems,
-      getTotalPrice,
+    <CartContext.Provider value={{ 
+      cartItems, 
+      loading, 
+      addToCart, 
+      removeFromCart, 
+      updateQuantity, 
+      clearCart, 
+      getCartTotal, 
+      getCartCount,
+      user: currentUser  // expose user to components
     }}>
       {children}
     </CartContext.Provider>
   );
-};
-
-export const useCart = () => {
-  const context = useContext(CartContext);
-  if (!context) {
-    throw new Error('useCart must be used within CartProvider');
-  }
-  return context;
 };

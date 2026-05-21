@@ -9,7 +9,8 @@ import {
   update,
   remove,
   push,
-  serverTimestamp
+  serverTimestamp,
+  onValue                       // <-- ADDED
 } from "firebase/database";
 
 // ================= FIREBASE CONFIG =================
@@ -62,9 +63,6 @@ export const DEFAULT_ADMIN = {
 
 // ================= CORE INTEGRATION FUNCTIONS =================
 
-/**
- * Stores or updates user profile in the database
- */
 export const storeUserProfile = async (userId, userData) => {
   try {
     const userRef = ref(db, `users/${userId}`);
@@ -80,9 +78,6 @@ export const storeUserProfile = async (userId, userData) => {
   }
 };
 
-/**
- * Fetches user profile from the database
- */
 export const getUserProfile = async (userId) => {
   try {
     const userRef = ref(db, `users/${userId}`);
@@ -97,9 +92,6 @@ export const getUserProfile = async (userId) => {
   }
 };
 
-/**
- * Submits a quote/order to the database
- */
 export const submitQuote = async (quoteData) => {
   try {
     const quotesRef = ref(db, 'quotes');
@@ -117,9 +109,6 @@ export const submitQuote = async (quoteData) => {
   }
 };
 
-// ================= ADMIN & USER LISTING FUNCTIONS =================
-
-// Fetch users (excluding admin)
 export const fetchAllUsers = async () => {
   try {
     const usersRef = ref(db, "users");
@@ -135,7 +124,6 @@ export const fetchAllUsers = async () => {
   }
 };
 
-// Get single user (excluding admin)
 export const getUserById = async (userId) => {
   try {
     const userRef = ref(db, `users/${userId}`);
@@ -150,7 +138,6 @@ export const getUserById = async (userId) => {
   }
 };
 
-// Update user
 export const updateUser = async (userId, updates) => {
   try {
     const userRef = ref(db, `users/${userId}`);
@@ -165,7 +152,6 @@ export const updateUser = async (userId, updates) => {
   }
 };
 
-// Delete user
 export const deleteUser = async (userId) => {
   try {
     const userRef = ref(db, `users/${userId}`);
@@ -177,9 +163,20 @@ export const deleteUser = async (userId) => {
   }
 };
 
-// ================= EXPORTS =================
-export { ref, get, set, update, remove, push, serverTimestamp };
+// ================= ADDITIONAL EXPORTS FOR BACKWARD COMPATIBILITY =================
+export const database = db;   // alias for db
+
+// ================= EXPORTS (including onValue) =================
+export { 
+  ref, 
+  get, 
+  set, 
+  update, 
+  remove, 
+  push, 
+  serverTimestamp, 
+  onValue       // <-- now exported
+};
 export { app, analytics, auth, db };
 export { db as quoteDatabase };
 export default app;
-

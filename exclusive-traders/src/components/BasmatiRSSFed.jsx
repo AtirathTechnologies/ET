@@ -2,16 +2,38 @@ import React, { useState, useEffect, useRef } from "react";
 import { RotateCw, TrendingUp, BarChart3, ExternalLink } from "lucide-react";
 
 const BasmatiRSSFeed = () => {
-  const [feeds, setFeeds] = useState([
-    { id: 1, title: "Loading live rice market updates...", link: "#", source: "Market Watch", type: "info" }
+  // Helper to load initial state from localStorage or default values
+  const getInitialState = () => {
+    try {
+      const storedFeeds = localStorage.getItem("basmati_rss_feeds");
+      const storedTitle = localStorage.getItem("basmati_rss_title");
+      const storedTrend = localStorage.getItem("basmati_rss_trend");
+      return {
+        feeds: storedFeeds ? JSON.parse(storedFeeds) : null,
+        title: storedTitle || "🌾 Live Rice Market Updates",
+        trend: storedTrend || "stable"
+      };
+    } catch (e) {
+      console.error("Error loading cached RSS state:", e);
+      return { feeds: null, title: "🌾 Live Rice Market Updates", trend: "stable" };
+    }
+  };
+
+  const initialState = getInitialState();
+
+  const [feeds, setFeeds] = useState(initialState.feeds || [
+    { id: "default-1", title: "Traditional Basmati export prices stabilize amid steady global demand", link: "#", source: "Market Watch", type: "price" },
+    { id: "default-2", title: "New high-yielding basmati rice variety gets positive response from farmers", link: "#", source: "AgriTech", type: "innovation" },
+    { id: "default-3", title: "Indian port logistics streamline rice shipments for upcoming quarter", link: "#", source: "Trade Watch", type: "trade" }
   ]);
   const [loading, setLoading] = useState(false);
   const [paused, setPaused] = useState(false);
-  const [currentTitle, setCurrentTitle] = useState("🌾 Live Rice Market Updates");
-  const [marketTrend, setMarketTrend] = useState("loading");
+  const [currentTitle, setCurrentTitle] = useState(initialState.title);
+  const [marketTrend, setMarketTrend] = useState(initialState.trend);
   const [activeFeed, setActiveFeed] = useState(null);
   const scrollContainerRef = useRef(null);
   const animationRef = useRef(null);
+  const translateXRef = useRef(0);
   const API_BASE_URL = "http://localhost:8000";
 
   useEffect(() => {
@@ -29,39 +51,39 @@ const BasmatiRSSFeed = () => {
   }, []);
 
   useEffect(() => {
-    if (!paused) {
-      startScrolling();
-    } else {
+    let lastTimestamp = 0;
+    const speed = 0.5; // Adjust scroll speed here
+
+    const animateScroll = (timestamp) => {
+      if (!lastTimestamp) lastTimestamp = timestamp;
+      const deltaTime = timestamp - lastTimestamp;
+
+      if (deltaTime >= 16) {
+        if (!paused && scrollContainerRef.current) {
+          const container = scrollContainerRef.current;
+          translateXRef.current -= speed;
+
+          const contentWidth = container.scrollWidth / 2;
+          if (Math.abs(translateXRef.current) >= contentWidth) {
+            translateXRef.current = 0;
+          }
+
+          container.style.transform = `translateX(${translateXRef.current}px)`;
+        }
+        lastTimestamp = timestamp;
+      }
+
+      animationRef.current = requestAnimationFrame(animateScroll);
+    };
+
+    animationRef.current = requestAnimationFrame(animateScroll);
+
+    return () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
-    }
-  }, [paused, feeds]);
-
-  const startScrolling = () => {
-    if (!scrollContainerRef.current) return;
-
-    const container = scrollContainerRef.current;
-    let startTime = null;
-    const duration = 160000;
-
-    const animate = (timestamp) => {
-      if (!startTime) startTime = timestamp;
-      const elapsed = timestamp - startTime;
-      const progress = (elapsed % duration) / duration;
-      
-      const contentWidth = container.scrollWidth / 2;
-      const translateX = -progress * contentWidth;
-      
-      container.style.transform = `translateX(${translateX}px)`;
-      
-      if (!paused) {
-        animationRef.current = requestAnimationFrame(animate);
-      }
     };
-
-    animationRef.current = requestAnimationFrame(animate);
-  };
+  }, [paused, feeds]);
 
   const fetchFeeds = async () => {
     try {
@@ -69,8 +91,18 @@ const BasmatiRSSFeed = () => {
       const rssResponse = await fetch(`${API_BASE_URL}/rss`);
       const rssData = await rssResponse.json();
 
-      if (rssData.current_title) setCurrentTitle(rssData.current_title);
-      setMarketTrend(rssData.market_trend || "stable");
+      if (rssData.current_title) {
+        setCurrentTitle(rssData.current_title);
+        try {
+          localStorage.setItem("basmati_rss_title", rssData.current_title);
+        } catch (e) {}
+      }
+      
+      const trend = rssData.market_trend || "stable";
+      setMarketTrend(trend);
+      try {
+        localStorage.setItem("basmati_rss_trend", trend);
+      } catch (e) {}
 
       if (rssData?.articles?.length > 0) {
         const enhancedFeeds = rssData.articles.map((article, i) => ({
@@ -81,15 +113,24 @@ const BasmatiRSSFeed = () => {
           type: getArticleType(article.title)
         }));
         setFeeds(enhancedFeeds);
+        try {
+          localStorage.setItem("basmati_rss_feeds", JSON.stringify(enhancedFeeds));
+        } catch (e) {}
       }
     } catch (err) {
       console.error("Error fetching feeds:", err);
-      const fallbackFeeds = [
-        { id: 1, title: `Banned rice prices rising amid strong export demand`, link: "https://example.com/price", source: "Market Intelligence", type: "price" },
-        { id: 2, title: `Rice export demand wealth in international markets`, link: "https://example.com/export", source: "Trade Watch", type: "export" },
-        { id: 3, title: `New rice varieties show stable yield potential`, link: "https://example.com/innovation", source: "AgriTech", type: "innovation" }
-      ];
-      setFeeds(fallbackFeeds);
+      // Only load fallback feeds if we are currently displaying default placeholder feeds
+      setFeeds(current => {
+        if (current.some(f => String(f.id).startsWith('default-'))) {
+          const fallbackFeeds = [
+            { id: 1, title: `Banned rice prices rising amid strong export demand`, link: "https://example.com/price", source: "Market Intelligence", type: "price" },
+            { id: 2, title: `Rice export demand wealth in international markets`, link: "https://example.com/export", source: "Trade Watch", type: "export" },
+            { id: 3, title: `New rice varieties show stable yield potential`, link: "https://example.com/innovation", source: "AgriTech", type: "innovation" }
+          ];
+          return fallbackFeeds;
+        }
+        return current;
+      });
       setCurrentTitle(getRandomTitle());
     } finally {
       setLoading(false);
@@ -146,7 +187,7 @@ const BasmatiRSSFeed = () => {
   };
 
   return (
-    <div className="w-full h-16 bg-gradient-to-r from-gray-900/95 to-dark/95 border-b-2 border-emerald-500 shadow-lg z-30 overflow-hidden fixed top-20 backdrop-blur-md">
+    <div className="w-full h-16 bg-gradient-to-r from-gray-900/95 to-dark/95 border-b-2 border-emerald-500 shadow-lg z-30 overflow-hidden fixed top-[72px] sm:top-[80px] md:top-[88px] backdrop-blur-md">
       {/* Scrolling News Ticker */}
       <div className="w-full h-full flex items-center relative bg-dark/80">
         <div className="flex-1 overflow-hidden">

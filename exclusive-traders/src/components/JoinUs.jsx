@@ -145,7 +145,7 @@ const JoinUs = () => {
   };
 
   return (
-    <div className="min-h-screen bg-dark text-light py-8 px-4 professional-section relative">
+    <div className="min-h-screen bg-dark text-light professional-section relative">
       {/* Success Popup Modal */}
       {showSuccessPopup && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 animate-fade-in">

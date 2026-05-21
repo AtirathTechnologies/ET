@@ -6,7 +6,6 @@ import {
   useNavigate,
   useLocation,
   Navigate,
-  Outlet,
 } from 'react-router-dom';
 import { auth, getUserProfile } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -32,7 +31,8 @@ import Leadership from './components/Leadership';
 import Contactus from './components/Contactus';
 import BuyModal from './components/BuyModal';
 import EditProfile from './components/EditProfile';
-import TransportPage from './components/TransportPage';  // <-- IMPORT
+import TransportPage from './components/TransportPage';
+import Cart from './components/Cart';
 
 // ---------- Import CartProvider ----------
 import { CartProvider } from './components/CartContext';
@@ -67,7 +67,14 @@ function App() {
   const [currentIndustry, setCurrentIndustry] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [isMounted, setIsMounted] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem('currentUser') || localStorage.getItem('current_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authAction, setAuthAction] = useState('');
   const [showSignOutSuccess, setShowSignOutSuccess] = useState(false);
@@ -122,6 +129,7 @@ function App() {
 
           setCurrentUser(fullUser);
           localStorage.setItem('currentUser', JSON.stringify(fullUser));
+          localStorage.setItem('current_user', JSON.stringify(fullUser));
           console.log("👤 User Profile Synced:", fullUser.email);
         } catch (error) {
           console.error("❌ Error syncing profile:", error);
@@ -130,6 +138,7 @@ function App() {
       } else {
         setCurrentUser(null);
         localStorage.removeItem('currentUser');
+        localStorage.removeItem('current_user');
       }
       setAuthLoading(false);
     });
@@ -139,7 +148,7 @@ function App() {
 
   // Reset search when not on product pages
   useEffect(() => {
-    window.scrollTo(0, 0);   // 👈 ADD THIS LINE
+    window.scrollTo(0, 0);
 
     const path = location.pathname;
     if (!path.startsWith('/products') && !path.startsWith('/admin')) {
@@ -168,10 +177,7 @@ function App() {
 
   // Updated showIndustryProducts function
   const showIndustryProducts = (industry) => {
-    // First update the current industry state
     setCurrentIndustry(industry);
-
-    // Then navigate to the products page
     const industrySlug = industry.toLowerCase().replace(/\s+/g, '-');
     navigate(`/products/category/${industrySlug}`);
     setShowInnovationPage(false);
@@ -203,6 +209,7 @@ function App() {
     setSearchTerm('');
     setIsMobileMenuOpen(false);
     setIsSidebarOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSearchChange = (term) => setSearchTerm(term);
@@ -258,17 +265,9 @@ function App() {
   };
   const closeSignOutSuccess = () => setShowSignOutSuccess(false);
 
-  // Render
-  if (!isMounted) {
-    return (
-      <div className="min-h-screen bg-dark flex items-center justify-center">
-        <div className="text-secondary text-2xl font-inter">Loading...</div>
-      </div>
-    );
-  }
-
   return (
-    <CartProvider>
+    // 🔥 PASS THE currentUser TO CartProvider AS user PROP
+    <CartProvider user={currentUser}>
       <div className="App font-inter">
         {/* Header - Don't show on admin pages */}
         {!location.pathname.startsWith('/admin') && (
@@ -343,7 +342,7 @@ function App() {
             />
 
             {/* Transport Page */}
-            <Route path="/transport" element={<TransportPage />} />  {/* <-- NEW ROUTE */}
+            <Route path="/transport" element={<TransportPage />} />
 
             {/* Products routes */}
             <Route
@@ -396,6 +395,9 @@ function App() {
               }
             />
 
+            {/* Cart page */}
+            <Route path="/cart" element={<Cart />} />
+
             {/* Authentication routes */}
             <Route
               path="/signin"
@@ -443,7 +445,7 @@ function App() {
           </Routes>
         </main>
 
-        {/* Footer */}
+        {/* Footer - Don't show on admin pages */}
         {!location.pathname.startsWith('/admin') && <Footer />}
 
         {/* Buy Modal */}

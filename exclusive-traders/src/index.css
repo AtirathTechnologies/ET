@@ -567,7 +567,7 @@ input:focus, select:focus, textarea:focus {
 
 /* Professional spacing and typography */
 .professional-section {
-  @apply py-20 px-4;
+  @apply pt-8 pb-20 px-4;
 }
 
 .professional-heading {

@@ -63,7 +63,7 @@ const Blog = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-dark text-light py-8 px-4 professional-section">
+    <div className="min-h-screen bg-dark text-light professional-section">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12 animate-fade-in-up px-4">
           <h1 className="professional-heading text-secondary text-shadow-black text-3xl md:text-4xl lg:text-5xl">

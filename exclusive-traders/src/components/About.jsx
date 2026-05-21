@@ -2,7 +2,7 @@ import img1 from '../assets/About.webp'
 
 const About = () => {
   return (
-    <section id="about" className="py-20 bg-light text-dark">
+    <section id="about" className="pt-8 pb-20 bg-light text-dark">
       <div className="container mx-auto px-4">
         <div className="about-content flex flex-col md:flex-row items-center gap-12">
           <div className="about-text flex-1">

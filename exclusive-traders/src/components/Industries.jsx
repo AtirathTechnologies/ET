@@ -103,7 +103,7 @@ const Industries = ({ showIndustryProducts }) => {
   );
 
   return (
-    <section id="industries" className="py-20 bg-dark">
+    <section id="industries" className="pt-8 pb-20 bg-dark">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <h2 className="text-4xl text-secondary mb-4">

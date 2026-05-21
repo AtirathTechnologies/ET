@@ -1,17 +1,48 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { ArrowLeft, Building2, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Building2, X, ChevronRight } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db as database, ref, get } from '../firebase';
-import { CURRENCIES } from '../data/Currency';
 import BuyModal from './BuyModal';
 import { useCart } from './CartContext';
+import AddToCartModal from './AddToCartModal';
+
+// ========== STATIC CURRENCIES ==========
+const STATIC_CURRENCIES = {
+  USD: { symbol: '$', rateFromUSD: 1, name: 'USD' },
+  INR: { symbol: '₹', rateFromUSD: 83.5, name: 'INR' },
+  AED: { symbol: 'د.إ', rateFromUSD: 3.67, name: 'AED' },
+  AUD: { symbol: 'A$', rateFromUSD: 1.52, name: 'AUD' },
+  CAD: { symbol: 'C$', rateFromUSD: 1.35, name: 'CAD' },
+  EUR: { symbol: '€', rateFromUSD: 0.92, name: 'EUR' },
+  GBP: { symbol: '£', rateFromUSD: 0.79, name: 'GBP' },
+  KWD: { symbol: 'KD', rateFromUSD: 0.31, name: 'KWD' },
+  MYR: { symbol: 'RM', rateFromUSD: 4.70, name: 'MYR' },
+  OMR: { symbol: 'ر.ع.', rateFromUSD: 0.38, name: 'OMR' },
+  QAR: { symbol: 'ر.ق', rateFromUSD: 3.64, name: 'QAR' },
+  SAR: { symbol: '﷼', rateFromUSD: 3.75, name: 'SAR' },
+  SGD: { symbol: 'S$', rateFromUSD: 1.34, name: 'SGD' },
+  THB: { symbol: '฿', rateFromUSD: 35.8, name: 'THB' },
+  TRY: { symbol: '₺', rateFromUSD: 32.5, name: 'TRY' },
+  ZAR: { symbol: 'R', rateFromUSD: 18.9, name: 'ZAR' }
+};
+
+// Helper: format pack_type (array or string) into a readable string
+const formatPackType = (packType) => {
+  if (!packType) return '';
+  if (Array.isArray(packType)) {
+    return packType
+      .map(item => item.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()))
+      .join(', ');
+  }
+  return packType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+};
 
 const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isAuthenticated = false, onNewOrderSubmitted }) => {
   const { categoryId } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
 
-  // States
+  // ==================== ORIGINAL STATES ====================
   const [categoryData, setCategoryData] = useState(null);
   const [allCompanies, setAllCompanies] = useState({});
   const [allBrands, setAllBrands] = useState({});
@@ -21,7 +52,6 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
   const [brands, setBrands] = useState([]);
   const [selectedBrand, setSelectedBrand] = useState(null);
   const [products, setProducts] = useState([]);
-  const [currency, setCurrency] = useState('AUTO');
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -33,7 +63,32 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
   const [brandSearchQuery, setBrandSearchQuery] = useState('');
   const [productSearchQuery, setProductSearchQuery] = useState('');
 
-  // Check mobile view
+  // ==================== ADD TO CART MODAL STATE ====================
+  const [showAddToCartModal, setShowAddToCartModal] = useState(false);
+  const [cartProduct, setCartProduct] = useState(null);
+
+  // ==================== CURRENCY STATES ====================
+  const [selectedCurrency, setSelectedCurrency] = useState('USD');
+  const [availableCurrencies, setAvailableCurrencies] = useState([]);
+
+  useEffect(() => {
+    const currencies = Object.keys(STATIC_CURRENCIES).map(code => ({
+      code,
+      symbol: STATIC_CURRENCIES[code].symbol,
+      rate: STATIC_CURRENCIES[code].rateFromUSD
+    }));
+    setAvailableCurrencies(currencies);
+  }, []);
+
+  useEffect(() => {
+    if (!categoryData) return;
+    const isRiceCategory = categoryId === 'rice' ||
+                          categoryData?.name?.toLowerCase().includes('rice') ||
+                          categoryId?.toLowerCase().includes('rice');
+    setSelectedCurrency(isRiceCategory && STATIC_CURRENCIES['INR'] ? 'INR' : 'USD');
+  }, [categoryData, categoryId]);
+
+  // ==================== MOBILE DETECTION ====================
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
@@ -41,7 +96,7 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Fetch all data from Firebase
+  // ==================== FETCH ALL DATA ====================
   useEffect(() => {
     fetchAllData();
   }, [categoryId]);
@@ -96,7 +151,16 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
 
       filteredCompanies = filteredCompanies.map(company => {
         const companyProducts = categoryProducts.filter(p => p.companyId === company.id);
-        const brandIds = [...new Set(companyProducts.map(p => p.brandId).filter(Boolean))];
+        let brandIds = [];
+        
+        // For rice category, brands come from "type" field; otherwise from brandId
+        if (categoryId === 'rice') {
+          const types = [...new Set(companyProducts.map(p => p.type).filter(Boolean))];
+          brandIds = types;
+        } else {
+          brandIds = [...new Set(companyProducts.map(p => p.brandId).filter(Boolean))];
+        }
+        
         return {
           ...company,
           productCount: companyProducts.length,
@@ -104,6 +168,8 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
           hasBrands: brandIds.length > 0
         };
       });
+
+      filteredCompanies.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
       setCompanies(filteredCompanies);
       setIsLoading(false);
@@ -113,10 +179,9 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
     }
   };
 
-  // Filter products based on search query
+  // ==================== SEARCH FILTERS ====================
   useEffect(() => {
     let filtered = products;
-
     if (globalSearchQuery.trim() !== '') {
       const searchLower = globalSearchQuery.toLowerCase().trim();
       filtered = filtered.filter(product => (
@@ -125,28 +190,29 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
         (product.companyName && product.companyName.toLowerCase().includes(searchLower)) ||
         (product.brandName && product.brandName.toLowerCase().includes(searchLower)) ||
         (product.origin && product.origin.toLowerCase().includes(searchLower)) ||
-        (product.pack_type && product.pack_type.toLowerCase().includes(searchLower)) ||
+        (product.pack_type && (Array.isArray(product.pack_type) 
+          ? product.pack_type.some(t => t.toLowerCase().includes(searchLower))
+          : product.pack_type.toLowerCase().includes(searchLower))) ||
         (product.shelf_life && product.shelf_life.toLowerCase().includes(searchLower)) ||
         (product.grades && product.grades.some(grade =>
           grade.grade && grade.grade.toLowerCase().includes(searchLower)
         ))
       ));
     }
-
     if (productSearchQuery.trim() !== '') {
       const searchLower = productSearchQuery.toLowerCase().trim();
       filtered = filtered.filter(product => (
         (product.name && product.name.toLowerCase().includes(searchLower)) ||
         (product.product_description && product.product_description.toLowerCase().includes(searchLower)) ||
         (product.origin && product.origin.toLowerCase().includes(searchLower)) ||
-        (product.pack_type && product.pack_type.toLowerCase().includes(searchLower))
+        (product.pack_type && (Array.isArray(product.pack_type)
+          ? product.pack_type.some(t => t.toLowerCase().includes(searchLower))
+          : product.pack_type.toLowerCase().includes(searchLower)))
       ));
     }
-
     setFilteredProducts(filtered);
   }, [globalSearchQuery, products, productSearchQuery]);
 
-  // Filter brands based on search query
   useEffect(() => {
     if (brandSearchQuery.trim() !== '' && brands.length > 0) {
       const searchLower = brandSearchQuery.toLowerCase().trim();
@@ -161,17 +227,172 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
     }
   }, [brandSearchQuery]);
 
+  // ==================== CURRENCY HELPERS ====================
   const convertCurrency = (amount, fromCurrency, toCurrency) => {
-    if (!CURRENCIES[fromCurrency] || !CURRENCIES[toCurrency]) return amount;
+    if (!amount && amount !== 0) return 0;
     if (fromCurrency === toCurrency) return amount;
-    let amountInUSD =
-      fromCurrency === 'USD'
-        ? amount
-        : amount / CURRENCIES[fromCurrency].rateFromUSD;
-    return amountInUSD * CURRENCIES[toCurrency].rateFromUSD;
+    const fromRate = STATIC_CURRENCIES[fromCurrency]?.rateFromUSD;
+    const toRate = STATIC_CURRENCIES[toCurrency]?.rateFromUSD;
+    if (!fromRate || !toRate) return amount;
+    const amountInUSD = fromCurrency === 'USD' ? amount : amount / fromRate;
+    return amountInUSD * toRate;
   };
 
-  // Load brands when company is selected
+  // Helper: parse pack size from key like "5kg" => { kg: 5, price: value }
+  const parsePackSize = (key, price) => {
+    const match = key.match(/^(\d+(?:\.\d+)?)\s*kg$/i);
+    if (match) {
+      return { kg: parseFloat(match[1]), price: parseFloat(price) };
+    }
+    return null;
+  };
+
+  const getBasePrice = (product) => {
+    if (!product) return { value: 0, currency: 'USD', unit: 'unit' };
+    
+    // NEW: Rice category with quantity object (pack sizes)
+    const isRiceCategory = categoryId === 'rice' || (categoryData?.name?.toLowerCase().includes('rice'));
+    if (isRiceCategory && product.quantity && typeof product.quantity === 'object') {
+      const packEntries = Object.entries(product.quantity);
+      if (packEntries.length > 0) {
+        const packs = packEntries
+          .map(([key, price]) => parsePackSize(key, price))
+          .filter(p => p !== null);
+        
+        if (packs.length > 0) {
+          // Find min and max kg and corresponding prices
+          let minKg = Infinity, maxKg = -Infinity;
+          let minPrice = Infinity, maxPrice = -Infinity;
+          packs.forEach(pack => {
+            if (pack.kg < minKg) {
+              minKg = pack.kg;
+              minPrice = pack.price;
+            }
+            if (pack.kg > maxKg) {
+              maxKg = pack.kg;
+              maxPrice = pack.price;
+            }
+          });
+          return {
+            type: 'rice_pack_range',
+            minPrice: minPrice,
+            maxPrice: maxPrice,
+            minKg: minKg,
+            maxKg: maxKg,
+            currency: 'INR',
+            unit: 'pack',
+            packCount: packs.length
+          };
+        }
+      }
+    }
+    
+    // Fallback to existing logic for other products or rice without quantity
+    if (product["Ex-Mill_usd"] !== undefined) {
+      return { value: product["Ex-Mill_usd"], currency: 'USD', unit: 'carton', type: 'EX-MILL' };
+    }
+    if (product.price_usd_per_carton !== undefined) {
+      return { value: product.price_usd_per_carton, currency: 'USD', unit: 'carton', type: 'carton' };
+    }
+    if (product.fob_price_usd !== undefined) {
+      return { value: product.fob_price_usd, currency: 'USD', unit: 'carton', type: 'FOB' };
+    }
+    if (product.price?.min !== undefined && product.price?.max !== undefined) {
+      const minPerKg = product.price.min / 100;
+      const maxPerKg = product.price.max / 100;
+      return {
+        min: minPerKg,
+        max: maxPerKg,
+        value: (minPerKg + maxPerKg) / 2,
+        currency: 'INR',
+        unit: 'kg',
+        type: 'rice'
+      };
+    }
+    if (product.grades && Array.isArray(product.grades) && product.grades.length > 0) {
+      const firstGrade = product.grades[0];
+      if (firstGrade.price_inr) {
+        return { value: parseFloat(firstGrade.price_inr), currency: 'INR', unit: 'kg', type: 'rice' };
+      }
+    }
+    if (product.price && typeof product.price === 'object') {
+      if (product.price.currency && product.price.value !== undefined) {
+        return {
+          value: product.price.value,
+          currency: product.price.currency,
+          unit: product.price.unit || 'unit',
+          type: 'fixed'
+        };
+      }
+    }
+    if (typeof product.price === 'number') {
+      const isRice = categoryId === 'rice' || categoryData?.name?.toLowerCase().includes('rice');
+      if (isRice) {
+        return { value: product.price, currency: 'INR', unit: 'kg', type: 'rice' };
+      }
+      return { value: product.price, currency: 'USD', unit: 'unit', type: 'fixed' };
+    }
+    return { value: 0, currency: 'USD', unit: 'unit', type: 'unknown' };
+  };
+
+  const getProductPrice = (product) => {
+    if (!product) return 'Contact for Price';
+    const base = getBasePrice(product);
+    const targetCurrency = selectedCurrency;
+    const symbol = STATIC_CURRENCIES[targetCurrency]?.symbol || targetCurrency;
+
+    // Handle new rice pack range
+    if (base.type === 'rice_pack_range') {
+      const minConverted = convertCurrency(base.minPrice, base.currency, targetCurrency);
+      const maxConverted = convertCurrency(base.maxPrice, base.currency, targetCurrency);
+      const minKg = base.minKg;
+      const maxKg = base.maxKg;
+      
+      if (base.packCount === 1) {
+        return `${symbol}${minConverted.toFixed(2)} / pack (${minKg}kg)`;
+      } else {
+        return `${symbol}${minConverted.toFixed(2)} - ${symbol}${maxConverted.toFixed(2)} / pack (${minKg}kg-${maxKg}kg)`;
+      }
+    }
+
+    if (base.type === 'rice' && base.min !== undefined && base.max !== undefined) {
+      const minConv = convertCurrency(base.min, base.currency, targetCurrency);
+      const maxConv = convertCurrency(base.max, base.currency, targetCurrency);
+      return `${symbol}${minConv.toFixed(2)} - ${symbol}${maxConv.toFixed(2)} / ${base.unit}`;
+    }
+    if (base.type === 'rice' && base.value) {
+      const valueConv = convertCurrency(base.value, base.currency, targetCurrency);
+      return `${symbol}${valueConv.toFixed(2)} / ${base.unit}`;
+    }
+    let valueConv = convertCurrency(base.value, base.currency, targetCurrency);
+    if (base.type === 'EX-MILL') return `${symbol}${valueConv.toFixed(2)} EX-MILL / ${base.unit}`;
+    if (base.type === 'FOB') return `${symbol}${valueConv.toFixed(2)} FOB / ${base.unit}`;
+    if (base.type === 'carton') return `${symbol}${valueConv.toFixed(2)} / ${base.unit}`;
+    return `${symbol}${valueConv.toFixed(2)} / ${base.unit}`;
+  };
+
+  const getPerUnitPrice = (product) => {
+    const base = getBasePrice(product);
+    // Skip for rice pack range to avoid confusion
+    if (base.type === 'rice_pack_range') return null;
+    
+    if ((base.type === 'carton' || base.type === 'EX-MILL' || base.type === 'FOB') && product.packaging?.units_per_carton) {
+      const perUnitBase = base.value / product.packaging.units_per_carton;
+      const perUnitConverted = convertCurrency(perUnitBase, base.currency, selectedCurrency);
+      const symbol = STATIC_CURRENCIES[selectedCurrency]?.symbol || selectedCurrency;
+      const perUnitText = `${symbol}${perUnitConverted.toFixed(2)} per unit`;
+      let perGramText = null;
+      if (product.packaging.unit_weight_g) {
+        const perGramBase = perUnitBase / product.packaging.unit_weight_g;
+        const perGramConv = convertCurrency(perGramBase, base.currency, selectedCurrency);
+        perGramText = `${symbol}${perGramConv.toFixed(4)}/g`;
+      }
+      return { perUnit: perUnitText, perGram: perGramText };
+    }
+    return null;
+  };
+
+  // ==================== LOAD BRANDS & PRODUCTS ====================
   useEffect(() => {
     if (selectedCompany && allBrands && allProducts) {
       loadCompanyBrands();
@@ -179,7 +400,7 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
   }, [selectedCompany, allBrands, allProducts]);
 
   const loadCompanyBrands = () => {
-    if (!selectedCompany || !allBrands || !allProducts) return;
+    if (!selectedCompany || !allProducts) return;
     try {
       const companyProducts = Object.entries(allProducts)
         .filter(([_, productData]) =>
@@ -188,11 +409,47 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
         )
         .map(([id, data]) => ({ id, ...data }));
 
+      // SPECIAL HANDLING FOR RICE CATEGORY: use "type" field as brand
+      if (categoryId === 'rice') {
+        const typeGroups = new Map(); // type -> { count, exampleProduct }
+        companyProducts.forEach(product => {
+          const type = product.type;
+          if (type) {
+            if (!typeGroups.has(type)) {
+              typeGroups.set(type, { count: 0, product: product });
+            }
+            typeGroups.get(type).count++;
+          }
+        });
+        
+        const brandList = Array.from(typeGroups.entries()).map(([type, { count, product }]) => {
+          // Format display name
+          let displayName = type === 'basmati' ? 'Basmati Rice' : 
+                           (type === 'non-basmati' ? 'Non-Basmati Rice' : 
+                           type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '));
+          return {
+            id: type,
+            name: displayName,
+            companyId: selectedCompany.id,
+            companyName: selectedCompany.name,
+            productCount: count,
+            imageUrl: null, // no brand logo for rice types
+            isRiceType: true
+          };
+        });
+        
+        brandList.sort((a, b) => a.name.localeCompare(b.name));
+        setBrands(brandList);
+        setViewMode('brands');
+        return;
+      }
+      
+      // Normal flow for other categories
       const brandedProducts = companyProducts.filter(p => p.brandId);
       const unbrandedProducts = companyProducts.filter(p => !p.brandId);
 
       const brandIds = [...new Set(brandedProducts.map(p => p.brandId))];
-      const brandList = brandIds
+      let brandList = brandIds
         .map(brandId => {
           const brandData = allBrands[brandId];
           if (!brandData) return null;
@@ -207,12 +464,15 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
         })
         .filter(Boolean);
 
+      brandList.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
       if (brandList.length > 0) {
         setBrands(brandList);
         setViewMode('brands');
         return;
       }
 
+      // No brands: show unbranded products directly
       const productsList = unbrandedProducts.map(p => ({
         ...p,
         companyId: selectedCompany.id,
@@ -230,7 +490,6 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
     }
   };
 
-  // Load products when brand is selected
   useEffect(() => {
     if (selectedBrand && allProducts) {
       loadBrandProducts();
@@ -241,20 +500,41 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
     if (!selectedBrand || !allProducts) return;
     try {
       let productsList;
-      productsList = Object.entries(allProducts)
-        .filter(([_, productData]) =>
-          productData.categoryId === categoryId &&
-          productData.companyId === selectedBrand.companyId &&
-          productData.brandId === selectedBrand.id
-        )
-        .map(([id, data]) => ({
-          id,
-          ...data,
-          companyId: selectedBrand.companyId,
-          companyName: selectedBrand.companyName,
-          brandName: selectedBrand.name,
-          imageUrl: getProductImageUrl(data)
-        }));
+      
+      // For rice category, filter by product.type
+      if (categoryId === 'rice' && selectedBrand.isRiceType) {
+        productsList = Object.entries(allProducts)
+          .filter(([_, productData]) =>
+            productData.categoryId === categoryId &&
+            productData.companyId === selectedBrand.companyId &&
+            productData.type === selectedBrand.id
+          )
+          .map(([id, data]) => ({
+            id,
+            ...data,
+            companyId: selectedBrand.companyId,
+            companyName: selectedBrand.companyName,
+            brandName: selectedBrand.name,
+            imageUrl: getProductImageUrl(data)
+          }));
+      } else {
+        // Normal flow: filter by brandId
+        productsList = Object.entries(allProducts)
+          .filter(([_, productData]) =>
+            productData.categoryId === categoryId &&
+            productData.companyId === selectedBrand.companyId &&
+            productData.brandId === selectedBrand.id
+          )
+          .map(([id, data]) => ({
+            id,
+            ...data,
+            companyId: selectedBrand.companyId,
+            companyName: selectedBrand.companyName,
+            brandName: selectedBrand.name,
+            imageUrl: getProductImageUrl(data)
+          }));
+      }
+      
       setProducts(productsList);
       setFilteredProducts(productsList);
       setViewMode('products');
@@ -266,23 +546,14 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
     }
   };
 
-  // ==================== IMAGE PATH HANDLING ====================
+  // ==================== IMAGE HANDLING ====================
   const getCorrectImagePath = (imagePath) => {
     if (!imagePath) return null;
-
-    // If already full URL → return directly
-    if (imagePath.startsWith('http')) {
-      return imagePath;
-    }
-
-    // Remove leading slashes
+    if (imagePath.startsWith('http')) return imagePath;
     let cleanPath = imagePath.replace(/^\/+/, '');
-
-    // ONLY modify if needed
     if (cleanPath.startsWith('img/')) {
       cleanPath = cleanPath.replace('img/', 'ProductsImg/');
     }
-
     return `/${cleanPath}`;
   };
 
@@ -299,29 +570,17 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
 
   const getBrandImage = (brandData) => {
     if (!brandData) return null;
-    if (brandData.logo) {
-      return getCorrectImagePath(brandData.logo);
-    }
-    if (brandData.image) {
-      return getCorrectImagePath(brandData.image);
-    }
-    if (brandData.brand_logo) {
-      return getCorrectImagePath(brandData.brand_logo);
-    }
+    if (brandData.logo) return getCorrectImagePath(brandData.logo);
+    if (brandData.image) return getCorrectImagePath(brandData.image);
+    if (brandData.brand_logo) return getCorrectImagePath(brandData.brand_logo);
     return null;
   };
 
   const getCompanyLogo = (company) => {
     if (!company) return null;
-    if (company.image) {
-      return getCorrectImagePath(company.image);
-    }
-    if (company.logo) {
-      return getCorrectImagePath(company.logo);
-    }
-    if (company.company_logo) {
-      return getCorrectImagePath(company.company_logo);
-    }
+    if (company.image) return getCorrectImagePath(company.image);
+    if (company.logo) return getCorrectImagePath(company.logo);
+    if (company.company_logo) return getCorrectImagePath(company.company_logo);
     return null;
   };
 
@@ -339,99 +598,38 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
     return fallbackImages[categoryId] || fallbackImages.default;
   };
 
-  // Dynamic price display based on product type
-  const getProductPrice = (product) => {
-    const resolveCurrency = (baseCurrency) => {
-      return currency === 'AUTO' ? baseCurrency : currency;
-    };
-
-    if (product["Ex-Mill_usd"] !== undefined) {
-      const base = 'USD';
-      const target = resolveCurrency(base);
-      const value = convertCurrency(product["Ex-Mill_usd"], base, target);
-      return `${CURRENCIES[target].symbol}${value.toFixed(2)} EX-MILL`;
-    }
-
-    if (product.price_usd_per_carton !== undefined) {
-      const base = 'USD';
-      const target = resolveCurrency(base);
-      const value = convertCurrency(product.price_usd_per_carton, base, target);
-      return `${CURRENCIES[target].symbol}${value.toFixed(2)} / carton`;
-    }
-
-    if (product.fob_price_usd !== undefined) {
-      const base = 'USD';
-      const target = resolveCurrency(base);
-      const value = convertCurrency(product.fob_price_usd, base, target);
-      return `${CURRENCIES[target].symbol}${value.toFixed(2)} FOB`;
-    }
-
-    if (product.price?.min !== undefined && product.price?.max !== undefined) {
-      const base = 'INR';
-      const target = resolveCurrency(base);
-      const min = convertCurrency(product.price.min, base, target);
-      const max = convertCurrency(product.price.max, base, target);
-      return `${CURRENCIES[target].symbol}${min.toFixed(0)} - ${CURRENCIES[target].symbol}${max.toFixed(0)} / ${product.price.unit}`;
-    }
-
-    if (product.price !== undefined && typeof product.price === 'number') {
-      const base = 'USD';
-      const target = resolveCurrency(base);
-      const value = convertCurrency(product.price, base, target);
-      return `${CURRENCIES[target].symbol}${value.toFixed(2)}`;
-    }
-
-    return 'Contact for Price';
+  // ==================== ADD TO CART HANDLER ====================
+  const handleAddToCartClick = (product) => {
+    setCartProduct(product);
+    setShowAddToCartModal(true);
   };
 
-  // Calculate per unit price for USD products
-  const getPerUnitPrice = (product) => {
-    if (product.price_usd_per_carton && product.packaging?.units_per_carton) {
-      const perUnitUSD = product.price_usd_per_carton / product.packaging.units_per_carton;
-      const perGramUSD = product.packaging.unit_weight_g
-        ? (perUnitUSD / product.packaging.unit_weight_g)
-        : null;
-      return {
-        perUnit: `$${perUnitUSD.toFixed(2)} per unit`,
-        perGram: perGramUSD ? `$${perGramUSD.toFixed(4)}/g` : null
-      };
-    }
-
-    if (product.fob_price_usd && product.packaging?.units_per_carton) {
-      const perUnitUSD = product.fob_price_usd / product.packaging.units_per_carton;
-      const perGramUSD = product.packaging.unit_weight_g
-        ? (perUnitUSD / product.packaging.unit_weight_g)
-        : null;
-      return {
-        perUnit: `$${perUnitUSD.toFixed(2)} per unit`,
-        perGram: perGramUSD ? `$${perGramUSD.toFixed(4)}/g` : null
-      };
-    }
-    return null;
+  const handleAddToCartConfirm = (cartItem) => {
+    addToCart(cartItem);
+    alert(`${cartItem.name} added to cart!`);
+    setShowAddToCartModal(false);
   };
 
-  // Handle company selection
+  // ==================== NAVIGATION HANDLERS ====================
   const handleCompanySelect = (company) => {
     setSelectedCompany(company);
     setSelectedBrand(null);
     setBrandSearchQuery('');
   };
 
-  // Handle brand selection
   const handleBrandSelect = (brand) => {
     setSelectedBrand(brand);
   };
 
-  // Handle back to brands
   const handleBackToBrands = () => {
     setSelectedBrand(null);
     setProducts([]);
     setFilteredProducts([]);
     setViewMode('brands');
     setProductSearchQuery('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Handle back to companies
   const handleBackToCompanies = () => {
     setSelectedCompany(null);
     setSelectedBrand(null);
@@ -441,47 +639,39 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
     setViewMode('companies');
     setBrandSearchQuery('');
     setProductSearchQuery('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Handle back to all products (used when category not found or no companies)
   const handleBackToAllProducts = () => {
     navigate('/all-products');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Handle order now
+  // ==================== ORDER ====================
   const handleOrderNow = (product) => {
+    // IMPORTANT FIX: Do NOT overwrite product.quantity with a number
+    // Instead, pass the entire product object as is, and add extra metadata
     setSelectedProduct({
-      ...product,
-      quantity: 1,
+      ...product,  // Keep original fields including quantity object
+      // Do NOT set quantity: 1 here - that would delete the quantity object
       category: categoryData?.name || categoryId,
       company: product.companyName,
-      brand: product.brandName || 'General'
+      brand: product.brandName || 'General',
+      selectedCurrency: selectedCurrency,
+      currencyRates: STATIC_CURRENCIES,
+      currencySymbols: Object.fromEntries(
+        Object.entries(STATIC_CURRENCIES).map(([code, data]) => [code, data.symbol])
+      )
     });
     setIsBuyModalOpen(true);
   };
 
-  // Handle view details
   const handleViewDetails = (product) => {
     setDetailedProduct(product);
     setShowDetailsModal(true);
   };
 
-  // Handle Add to Cart
-  const handleAddToCart = (product) => {
-    const cartItem = {
-      id: product.id,
-      name: product.name,
-      price: getProductPrice(product).replace(/[^0-9.]/g, ''),
-      image: product.imageUrl || getFallbackImage(),
-      companyName: product.companyName,
-      brandName: product.brandName || 'General',
-      category: categoryData?.name || categoryId
-    };
-    addToCart(cartItem);
-    alert(`${product.name} added to cart successfully!`);
-  };
-
-  // Loading state
+  // ==================== LOADING STATE ====================
   if (isLoading) {
     return (
       <div className="product-page">
@@ -497,7 +687,6 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
     );
   }
 
-  // Category not found
   if (!categoryData) {
     return (
       <div className="product-page">
@@ -513,7 +702,7 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
     );
   }
 
-  // ------------------- Rich Products Component (Integrated) -------------------
+  // ==================== PRODUCTS COMPONENT ====================
   const Products = ({
     filteredProducts,
     selectedCompany,
@@ -521,6 +710,7 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
     getProductPrice,
     handleViewDetails,
     handleOrderNow,
+    getPerUnitPrice,
   }) => {
     const getPackagingText = (product) => {
       if (!product.packaging) return '';
@@ -547,6 +737,34 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
           <h3>{selectedBrand ? `${selectedBrand.name} Products` : 'Products'}</h3>
         </div>
 
+        {/* Currency Selector */}
+        <div className="currency-selector-wrapper" style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+          <div className="currency-dropdown-container">
+            <select
+              className="form-select currency-dropdown"
+              value={selectedCurrency}
+              onChange={(e) => setSelectedCurrency(e.target.value)}
+              style={{
+                background: 'rgba(15, 23, 42, 0.8)',
+                border: '1px solid rgba(0, 245, 200, 0.3)',
+                color: '#f1f5f9',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                width: 'auto',
+                minWidth: '120px'
+              }}
+            >
+              {availableCurrencies.map((curr) => (
+                <option key={curr.code} value={curr.code}>
+                  {curr.symbol} {curr.code}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         {filteredProducts.length === 0 ? (
           <div className="text-center py-5">
             <h5 className="text-muted">No products available</h5>
@@ -556,17 +774,17 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
             {filteredProducts.map((product) => {
               const perUnitPrice = getPerUnitPrice(product);
               const packagingText = getPackagingText(product);
-
+              const priceDisplay = getProductPrice(product);
               return (
                 <div key={product.id} className="product-card">
                   <div className="product-image-container">
                     <img
-                      src={product.imageUrl || 'https://via.placeholder.com/200x200?text=No+Image'}
+                      src={product.imageUrl || getFallbackImage()}
                       alt={product.name}
                       className="product-img"
                       onError={(e) => {
                         e.target.onerror = null;
-                        e.target.src = 'https://via.placeholder.com/200x200?text=Image+Not+Found';
+                        e.target.src = getFallbackImage();
                       }}
                     />
                   </div>
@@ -585,7 +803,7 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
                     </p>
                   )}
 
-                  <div className="product-price">{getProductPrice(product)}</div>
+                  <div className="product-price">{priceDisplay}</div>
 
                   {perUnitPrice && (
                     <div className="product-unit-price">
@@ -609,9 +827,10 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
                         <strong>Shelf Life:</strong> {product.shelf_life}
                       </li>
                     )}
+                    {/* UPDATED: pack_type as array or string */}
                     {product.pack_type && (
                       <li>
-                        <strong>Pack Type:</strong> {product.pack_type}
+                        <strong>Pack Type:</strong> {formatPackType(product.pack_type)}
                       </li>
                     )}
                   </ul>
@@ -622,6 +841,12 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
                       onClick={() => handleViewDetails(product)}
                     >
                       View Details
+                    </button>
+                    <button
+                      className="btn-cart"
+                      onClick={() => handleAddToCartClick(product)}
+                    >
+                      Add to Cart
                     </button>
                     <button
                       className="btn-order"
@@ -779,6 +1004,20 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
             background: #3b82f6;
             color: white;
           }
+          .btn-cart {
+            flex: 1;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 0;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.2s;
+          }
+          .btn-cart:hover {
+            background: #2563eb;
+          }
           .btn-order {
             flex: 1;
             background: #10b981;
@@ -802,14 +1041,16 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
               min-height: 120px;
               padding: 10px;
             }
+            .product-buttons {
+              flex-direction: column;
+            }
           }
         `}</style>
       </div>
     );
   };
-  // ----------------------------------------------------------------------
 
-  // ========== COMPANIES GRID (box removed, only brand count shown) ==========
+  // ==================== COMPANIES GRID ====================
   const renderCompanies = () => (
     <div className="companies-grid-section" style={{ marginTop: '2rem' }}>
       {companies.length === 0 ? (
@@ -846,12 +1087,9 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
                       alt={company.name}
                       className="company-logo-grid"
                       onError={(e) => {
-                        console.error('Transformed URL failed:', transformedUrl);
                         if (originalUrl && originalUrl !== transformedUrl) {
-                          console.log('Trying original URL:', originalUrl);
                           e.target.src = originalUrl;
-                          e.target.onerror = (err) => {
-                            console.error('Original URL also failed:', originalUrl);
+                          e.target.onerror = () => {
                             e.target.onerror = null;
                             e.target.style.display = 'none';
                             e.target.parentNode.innerHTML = `<div class="company-logo-placeholder-grid"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7h-4.5L15 4H9L8.5 7H4v2h16V7z"/><rect x="4" y="9" width="16" height="10" rx="1"/></svg></div>`;
@@ -954,160 +1192,176 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
       `}</style>
     </div>
   );
-  // ====================================================
 
-  // ========== HORIZONTAL BRANDS SECTION ==========
-  const renderBrands = () => (
-    <div className="brands-horizontal-section" style={{ marginTop: '2rem' }}>
-      <div className="mb-3">
-        <h3 className="h5 mb-1">{selectedCompany.name}</h3>
-        <p className="text-sm text-muted mb-0">Select a brand to view products</p>
-      </div>
+  // ==================== BRANDS GRID ====================
+  const renderBrands = () => {
+    const sortedBrands = [...brands].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-      {brands.length === 0 ? (
-        <div className="no-products-message text-center py-5">
-          <p className="h5 text-muted">No brands available</p>
-          <p className="text-sm opacity-80 mt-2">
-            This company doesn't have any brands in this category.
-          </p>
+    return (
+      <div className="brands-grid-section" style={{ marginTop: '2rem' }}>
+        <div className="mb-3">
+          <h3 className="h5 mb-1">{selectedCompany.name}</h3>
+          <p className="text-sm text-muted mb-0">Select a brand to view products</p>
         </div>
-      ) : (
-        <div className="brands-horizontal-scroll">
-          {brands.map(brand => {
-            const brandLogo = brand.imageUrl;
-            const originalPath = brand.logo || brand.image || brand.brand_logo;
-            const originalUrl = originalPath ? (originalPath.startsWith('http') ? originalPath : `/${originalPath.replace(/^\/+/, '')}`) : null;
-            return (
-              <div
-                key={brand.id}
-                className="brand-horizontal-item"
-                onClick={() => handleBrandSelect(brand)}
-                style={{ cursor: 'pointer' }}
-              >
-                <div className="brand-logo-container">
-                  {brandLogo ? (
-                    <img
-                      src={brandLogo}
-                      alt={brand.name}
-                      className="brand-logo"
-                      onError={(e) => {
-                        console.error('Transformed brand URL failed:', brandLogo);
-                        if (originalUrl && originalUrl !== brandLogo) {
-                          console.log('Trying original brand URL:', originalUrl);
-                          e.target.src = originalUrl;
-                          e.target.onerror = (err) => {
-                            console.error('Original brand URL also failed:', originalUrl);
+
+        {sortedBrands.length === 0 ? (
+          <div className="no-products-message text-center py-5">
+            <p className="h5 text-muted">No brands available</p>
+            <p className="text-sm opacity-80 mt-2">
+              This company doesn't have any brands in this category.
+            </p>
+          </div>
+        ) : (
+          <div className="brands-grid">
+            {sortedBrands.map(brand => {
+              const brandLogo = brand.imageUrl;
+              const originalPath = brand.logo || brand.image || brand.brand_logo;
+              const originalUrl = originalPath ? (originalPath.startsWith('http') ? originalPath : `/${originalPath.replace(/^\/+/, '')}`) : null;
+              return (
+                <div
+                  key={brand.id}
+                  className="brand-grid-item"
+                  onClick={() => handleBrandSelect(brand)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div className="brand-logo-container">
+                    {brandLogo ? (
+                      <img
+                        src={brandLogo}
+                        alt={brand.name}
+                        className="brand-logo"
+                        onError={(e) => {
+                          if (originalUrl && originalUrl !== brandLogo) {
+                            e.target.src = originalUrl;
+                            e.target.onerror = () => {
+                              e.target.onerror = null;
+                              e.target.style.display = 'none';
+                              e.target.parentNode.innerHTML = `<div class="brand-logo-placeholder"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7h-4.5L15 4H9L8.5 7H4v2h16V7z"/><rect x="4" y="9" width="16" height="10" rx="1"/></svg></div>`;
+                            };
+                          } else {
                             e.target.onerror = null;
                             e.target.style.display = 'none';
                             e.target.parentNode.innerHTML = `<div class="brand-logo-placeholder"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7h-4.5L15 4H9L8.5 7H4v2h16V7z"/><rect x="4" y="9" width="16" height="10" rx="1"/></svg></div>`;
-                          };
-                        } else {
-                          e.target.onerror = null;
-                          e.target.style.display = 'none';
-                          e.target.parentNode.innerHTML = `<div class="brand-logo-placeholder"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7h-4.5L15 4H9L8.5 7H4v2h16V7z"/><rect x="4" y="9" width="16" height="10" rx="1"/></svg></div>`;
-                        }
-                      }}
-                    />
-                  ) : (
-                    <div className="brand-logo-placeholder">
-                      <Building2 size={28} />
-                    </div>
-                  )}
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div className="brand-logo-placeholder">
+                        <Building2 size={28} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="brand-name">{brand.name}</div>
+                  <div className="brand-product-count">
+                    {brand.productCount} product{brand.productCount !== 1 ? 's' : ''}
+                  </div>
                 </div>
-                <div className="brand-name">{brand.name}</div>
-                <div className="brand-product-count">
-                  {brand.productCount} product{brand.productCount !== 1 ? 's' : ''}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
 
-      <style>{`
-        .brands-horizontal-section {
-          width: 100%;
-          padding: 0 0 20px 0;
-        }
-        .brands-horizontal-scroll {
-          display: flex;
-          flex-direction: row;
-          gap: 20px;
-          padding: 10px 0;
-          overflow-x: auto;
-          justify-content: flex-start;
-        }
-        .brand-horizontal-item {
-          flex: 0 0 auto;
-          width: 220px;
-          text-align: center;
-          padding: 0 5px;
-        }
-        .brand-logo-container {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          margin-bottom: 8px;
-          min-height: 60px;
-        }
-        .brand-logo {
-          width: 60px;
-          height: 60px;
-          border-radius: 50%;
-          object-fit: cover;
-        }
-        .brand-logo-placeholder {
-          width: 60px;
-          height: 60px;
-          border-radius: 50%;
-          background: #2d3748;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #a0aec0;
-        }
-        .brand-name {
-          font-size: 1.1rem;
-          font-weight: 500;
-          color: white;
-          margin-bottom: 4px;
-          white-space: normal;
-          word-wrap: break-word;
-          word-break: break-word;
-          line-height: 1.3;
-        }
-        .brand-product-count {
-          font-size: 0.8rem;
-          color: #9ca3af;
-        }
-        @media (max-width: 768px) {
-          .brand-horizontal-item {
-            width: 160px;
-            padding: 0 3px;
+        <style>{`
+          .brands-grid-section {
+            width: 100%;
+            padding: 0 0 20px 0;
+          }
+          .brands-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 30px;
+            max-width: 1000px;
+            margin: 0 auto;
+          }
+          .brand-grid-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            transition: transform 0.2s;
+          }
+          .brand-grid-item:hover {
+            transform: translateY(-5px);
+          }
+          .brand-logo-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 15px;
+            min-height: 80px;
           }
           .brand-logo {
-            width: 50px;
-            height: 50px;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
           }
           .brand-logo-placeholder {
-            width: 50px;
-            height: 50px;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: #2d3748;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #a0aec0;
           }
           .brand-name {
-            font-size: 1rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 8px;
+            line-height: 1.3;
+            word-break: break-word;
           }
-        }
-      `}</style>
-    </div>
-  );
-  // ==================================================
+          .brand-product-count {
+            font-size: 0.9rem;
+            color: #9ca3af;
+          }
 
+          @media (max-width: 992px) {
+            .brands-grid {
+              grid-template-columns: repeat(3, 1fr);
+              gap: 25px;
+            }
+          }
+
+          @media (max-width: 768px) {
+            .brands-grid {
+              grid-template-columns: repeat(2, 1fr);
+              gap: 20px;
+            }
+            .brand-logo {
+              width: 70px;
+              height: 70px;
+            }
+            .brand-logo-placeholder {
+              width: 70px;
+              height: 70px;
+            }
+            .brand-name {
+              font-size: 1rem;
+            }
+          }
+
+          @media (max-width: 480px) {
+            .brands-grid {
+              grid-template-columns: 1fr;
+              max-width: 280px;
+            }
+          }
+        `}</style>
+      </div>
+    );
+  };
+
+  // ==================== MAIN RENDER ====================
   return (
     <div className="product-page">
       <div className="product-main-content">
         <button
           className="back-button"
-          style={{ top: isMobile ? '60px' : '120px' }}
+          style={{ top: isMobile ? '145px' : '120px', left: isMobile ? '15px' : '20px' }}   // mobile: top 145px, left 15px
           onClick={
             viewMode === 'products'
               ? (selectedBrand ? handleBackToBrands : handleBackToCompanies)
@@ -1145,10 +1399,12 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
             getProductPrice={getProductPrice}
             handleViewDetails={handleViewDetails}
             handleOrderNow={handleOrderNow}
+            getPerUnitPrice={getPerUnitPrice}
           />
         )}
       </div>
 
+      {/* Pass industry prop to BuyModal */}
       <BuyModal
         isOpen={isBuyModalOpen}
         onClose={() => {
@@ -1160,6 +1416,12 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
         }}
         product={selectedProduct}
         profile={profile || null}
+        currencyRates={STATIC_CURRENCIES}
+        currencySymbols={Object.fromEntries(
+          Object.entries(STATIC_CURRENCIES).map(([code, data]) => [code, data.symbol])
+        )}
+        selectedCurrency={selectedCurrency}
+        industry={categoryData?.name || categoryId}
       />
 
       {/* Product Details Modal */}
@@ -1226,14 +1488,18 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
                 {detailedProduct["Ex-Mill_usd"] !== undefined && (
                   <div className="modal-spec-item">
                     <span className="modal-spec-label">EXW Price</span>
-                    <span className="modal-spec-value">$${detailedProduct["Ex-Mill_usd"].toFixed(2)} USD</span>
+                    <span className="modal-spec-value">
+                      {STATIC_CURRENCIES[selectedCurrency]?.symbol || '$'}{convertCurrency(detailedProduct["Ex-Mill_usd"], 'USD', selectedCurrency).toFixed(2)} {selectedCurrency}
+                    </span>
                   </div>
                 )}
 
                 {detailedProduct["Ex-Mill_usd"] === undefined && detailedProduct.fob_price_usd !== undefined && (
                   <div className="modal-spec-item">
                     <span className="modal-spec-label">FOB Price</span>
-                    <span className="modal-spec-value">$${detailedProduct.fob_price_usd.toFixed(2)} USD</span>
+                    <span className="modal-spec-value">
+                      {STATIC_CURRENCIES[selectedCurrency]?.symbol || '$'}{convertCurrency(detailedProduct.fob_price_usd, 'USD', selectedCurrency).toFixed(2)} {selectedCurrency}
+                    </span>
                   </div>
                 )}
 
@@ -1261,7 +1527,7 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
                 {detailedProduct.pack_type && (
                   <div className="modal-spec-item">
                     <span className="modal-spec-label">Pack Type</span>
-                    <span className="modal-spec-value">{detailedProduct.pack_type}</span>
+                    <span className="modal-spec-value">{formatPackType(detailedProduct.pack_type)}</span>
                   </div>
                 )}
               </div>
@@ -1285,6 +1551,17 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
         </div>
       )}
 
+      {/* Add to Cart Modal */}
+      {showAddToCartModal && cartProduct && (
+        <AddToCartModal
+          isOpen={showAddToCartModal}
+          onClose={() => setShowAddToCartModal(false)}
+          product={cartProduct}
+          onAddToCart={handleAddToCartConfirm}
+          industry={categoryData?.name || categoryId}
+        />
+      )}
+
       {/* Global styles */}
       <style>{`
         .product-page {
@@ -1302,8 +1579,7 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
      
         .back-button {
           position: fixed;
-          left: 20px;
-          top: 100px;
+          /* top and left are set inline */
           z-index: 100;
           background: rgba(30, 41, 59, 0.8);
           backdrop-filter: blur(8px);
@@ -1526,12 +1802,7 @@ const ProductPage = ({ profile, globalSearchQuery = '', onGlobalSearchClear, isA
         }
 
         @media (max-width: 768px) {
-          .back-button {
-            top: 80px;
-            left: 10px;
-            width: 40px;
-            height: 40px;
-          }
+          /* No back-button positioning here – inline style now handles it */
           .product-main-content {
             padding: 0 10px 10px 10px;
           }

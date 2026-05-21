@@ -263,11 +263,20 @@ async def fetch_single_feed(source, is_indian_agri=False):
         print(f"Error fetching from {source['name']}: {e}")
         return []
 
-@app.get("/rss")
-async def get_rss_feed():
-    """
-    Fetches latest RSS articles from multiple sources with enhanced rice filtering
-    """
+# Simple in-memory cache to make RSS endpoints load instantly
+rss_cache = {
+    "data": None,
+    "last_updated": None
+}
+indian_agri_cache = {
+    "data": None,
+    "last_updated": None
+}
+CACHE_DURATION_SECONDS = 600  # Cache for 10 minutes
+
+async def refresh_rss_cache():
+    global rss_cache
+    now = datetime.now()
     try:
         tasks = [fetch_single_feed(source) for source in RSS_SOURCES]
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -304,29 +313,29 @@ async def get_rss_feed():
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
             unique_articles = get_rice_fallback_articles(current_time)
         
-        return {
+        rss_cache["data"] = {
             "count": len(unique_articles),
             "articles": unique_articles[:20],
             "last_updated": datetime.now().isoformat(),
             "status": "success"
         }
-        
+        rss_cache["last_updated"] = now
     except Exception as e:
-        print(f"Error in rice RSS endpoint: {e}")
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
-        return {
-            "count": 5,
-            "articles": get_rice_fallback_articles(current_time),
-            "last_updated": datetime.now().isoformat(),
-            "status": "fallback",
-            "error": str(e)
-        }
+        print(f"Error in refresh_rss_cache: {e}")
+        # Keep old data if possible, otherwise build minimal fallback
+        if not rss_cache["data"]:
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+            rss_cache["data"] = {
+                "count": 5,
+                "articles": get_rice_fallback_articles(current_time),
+                "last_updated": datetime.now().isoformat(),
+                "status": "fallback",
+                "error": str(e)
+            }
 
-@app.get("/indian-agri-rss")
-async def get_indian_agri_rss():
-    """
-    Fetches Indian Agriculture and DGFT related RSS feeds with enhanced filtering
-    """
+async def refresh_indian_agri_cache():
+    global indian_agri_cache
+    now = datetime.now()
     try:
         tasks = [fetch_single_feed(source, is_indian_agri=True) for source in INDIAN_AGRI_RSS_SOURCES]
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -365,23 +374,73 @@ async def get_indian_agri_rss():
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
             unique_articles = get_indian_agri_fallback_articles(current_time)
         
-        return {
+        indian_agri_cache["data"] = {
             "count": len(unique_articles),
             "articles": unique_articles[:20],
             "last_updated": datetime.now().isoformat(),
             "status": "success"
         }
-        
+        indian_agri_cache["last_updated"] = now
     except Exception as e:
-        print(f"Error in Indian agriculture RSS endpoint: {e}")
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
-        return {
-            "count": 5,
-            "articles": get_indian_agri_fallback_articles(current_time),
-            "last_updated": datetime.now().isoformat(),
-            "status": "fallback",
-            "error": str(e)
-        }
+        print(f"Error in refresh_indian_agri_cache: {e}")
+        if not indian_agri_cache["data"]:
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+            indian_agri_cache["data"] = {
+                "count": 5,
+                "articles": get_indian_agri_fallback_articles(current_time),
+                "last_updated": datetime.now().isoformat(),
+                "status": "fallback",
+                "error": str(e)
+            }
+
+async def update_rss_caches_loop():
+    """Background task to periodically refresh RSS caches and warm them up on startup."""
+    # Wait for the server to be up and running shortly
+    await asyncio.sleep(1.0)
+    print("Warming up RSS and Indian Agri caches in background...")
+    await refresh_rss_cache()
+    await refresh_indian_agri_cache()
+    print("Startup RSS cache warm-up completed.")
+    
+    while True:
+        await asyncio.sleep(CACHE_DURATION_SECONDS)
+        try:
+            print("Refreshing RSS and Indian Agri caches in background...")
+            await refresh_rss_cache()
+            await refresh_indian_agri_cache()
+            print("RSS caches refreshed successfully.")
+        except Exception as e:
+            print(f"Error in background cache update: {e}")
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(update_rss_caches_loop())
+
+@app.get("/rss")
+async def get_rss_feed():
+    """
+    Fetches latest RSS articles from multiple sources with enhanced rice filtering
+    """
+    global rss_cache
+    if rss_cache["data"]:
+        return rss_cache["data"]
+
+    # Fallback to synchronous fetch on-demand if cache is not ready
+    await refresh_rss_cache()
+    return rss_cache["data"]
+
+@app.get("/indian-agri-rss")
+async def get_indian_agri_rss():
+    """
+    Fetches Indian Agriculture and DGFT related RSS feeds with enhanced filtering
+    """
+    global indian_agri_cache
+    if indian_agri_cache["data"]:
+        return indian_agri_cache["data"]
+
+    # Fallback to synchronous fetch on-demand if cache is not ready
+    await refresh_indian_agri_cache()
+    return indian_agri_cache["data"]
 
 def get_rice_fallback_articles(current_time):
     """Generate realistic fallback articles for rice market"""
