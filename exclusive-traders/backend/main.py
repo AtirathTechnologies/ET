@@ -6,12 +6,25 @@ from datetime import datetime
 import random
 import asyncio
 import json
+import os
+from dotenv import load_dotenv
 
-app = FastAPI(title="Agriculture RSS API")
+# Load environment variables from backend/.env
+load_dotenv()
+
+# ================= CONFIG FROM .env =================
+HOST = os.getenv("HOST", "0.0.0.0")
+PORT = int(os.getenv("PORT", "8000"))
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+CACHE_DURATION_SECONDS = int(os.getenv("CACHE_DURATION_SECONDS", "600"))
+API_TITLE = os.getenv("API_TITLE", "Agriculture RSS API")
+API_VERSION = os.getenv("API_VERSION", "3.0")
+
+app = FastAPI(title=API_TITLE)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -272,7 +285,7 @@ indian_agri_cache = {
     "data": None,
     "last_updated": None
 }
-CACHE_DURATION_SECONDS = 600  # Cache for 10 minutes
+CACHE_DURATION_SECONDS_INT = CACHE_DURATION_SECONDS  # already an int from env
 
 async def refresh_rss_cache():
     global rss_cache
@@ -506,4 +519,4 @@ def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host=HOST, port=PORT)

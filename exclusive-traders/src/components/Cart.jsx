@@ -24,7 +24,7 @@ const Cart = () => {
         if (usersSnapshot.exists()) {
           const users = usersSnapshot.val();
           const foundUser = Object.values(users).find(
-            u => u.email === user.email || u.uid === user.uid
+            u => (u.email && user.email && u.email.toLowerCase() === user.email.toLowerCase()) || u.uid === user.uid
           );
           if (foundUser) userData = foundUser;
         }
@@ -34,20 +34,33 @@ const Cart = () => {
           if (vendorsSnapshot.exists()) {
             const vendors = vendorsSnapshot.val();
             const foundVendor = Object.values(vendors).find(
-              v => v.email === user.email || v.uid === user.uid
+              v => (v.email && user.email && v.email.toLowerCase() === user.email.toLowerCase()) || v.uid === user.uid
             );
             if (foundVendor) userData = foundVendor;
           }
+        }
+        
+        // Fallback to localStorage if still no userData
+        if (!userData) {
+          try {
+            const stored = localStorage.getItem('current_user') || localStorage.getItem('currentUser');
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              if (parsed.email && user.email && parsed.email.toLowerCase() === user.email.toLowerCase()) {
+                userData = parsed;
+              }
+            }
+          } catch (e) {}
         }
         setCompleteProfile({
           uid: user.uid,
           name: user.displayName || userData?.name || "",
           email: user.email || "",
           phone: userData?.phone || "",
-          country: userData?.country || "",
-          state: userData?.state || "",
-          city: userData?.city || "",
-          pincode: userData?.pincode || "",
+          country: userData?.country || userData?.address?.country || "",
+          state: userData?.state || userData?.address?.state || "",
+          city: userData?.city || userData?.address?.city || "",
+          pincode: userData?.pincode || userData?.address?.pincode || "",
           ...(userData || {})
         });
       } catch (error) {
@@ -58,10 +71,18 @@ const Cart = () => {
     fetchUserProfile();
   }, [user]);
 
-  const productsTotal = cartItems.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
-  const totalPackingCost = cartItems.reduce((sum, item) => sum + ((item.packingPrice || 0) * item.quantity), 0);
+  const exchangeRate = 90.5;
+  const productsTotal = cartItems.reduce((sum, item) => {
+    const price = item.isRice ? item.unitPrice / exchangeRate : item.unitPrice;
+    return sum + (price * item.quantity);
+  }, 0);
+  const totalPackingCost = cartItems.reduce((sum, item) => {
+    const packPrice = item.packingPrice || 0;
+    const price = item.isRice ? packPrice / exchangeRate : packPrice;
+    return sum + (price * item.quantity);
+  }, 0);
   const subtotal = productsTotal + totalPackingCost;
-  const cartSymbol = cartItems.length > 0 && cartItems[0].isRice ? '₹' : '$';
+  const cartSymbol = '$';
   const totalItems = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
 
   // Direct navigation to Industries page (full page reload)
@@ -214,7 +235,7 @@ const Cart = () => {
                       <h3>{item.name}</h3>
                       <p className="item-meta">
                         {item.selectedPacking} {item.selectedGrade ? `| Grade: ${item.selectedGrade}` : ''}
-                        {item.packingPrice > 0 && ` | Packing Fee: $${item.packingPrice.toFixed(2)}`}
+                        {item.packingPrice > 0 && ` | Packing Fee: $${(item.isRice ? item.packingPrice / exchangeRate : item.packingPrice).toFixed(2)}`}
                       </p>
                       <div className="quantity-control">
                         <button onClick={() => updateQuantity(item.id, item.quantity - 1)}>
@@ -228,13 +249,13 @@ const Cart = () => {
                       <div className="item-price-row">
                         <span className="unit-price-label">Unit price:</span>
                         <span className="unit-price-value">
-                          {hasValidPrice ? `${item.isRice ? '₹' : '$'}${unitPrice.toFixed(2)}` : 'Contact for Price'}
+                          {hasValidPrice ? `$${(item.isRice ? unitPrice / exchangeRate : unitPrice).toFixed(2)}` : 'Contact for Price'}
                         </span>
                       </div>
                     </div>
                     <div className="item-total-remove">
                       <div className="item-total">
-                        {hasValidPrice ? `${item.isRice ? '₹' : '$'}${itemTotal.toFixed(2)}` : 'Contact for Price'}
+                        {hasValidPrice ? `$${(item.isRice ? itemTotal / exchangeRate : itemTotal).toFixed(2)}` : 'Contact for Price'}
                       </div>
                       <button className="remove-btn" onClick={() => removeFromCart(item.id)}>
                         <Trash2 size={18} />
@@ -256,17 +277,20 @@ const Cart = () => {
             
             <div style={{ maxHeight: '400px', overflowY: 'auto', marginBottom: '20px', paddingRight: '10px' }} className="summary-items-scroll">
               {cartItems.map((item, idx) => {
-                const symbol = item.isRice ? '₹' : '$';
+                const symbol = '$';
+                const displayUnitPrice = item.isRice ? item.unitPrice / exchangeRate : item.unitPrice;
+                const displayPackingPrice = item.isRice ? (item.packingPrice || 0) / exchangeRate : (item.packingPrice || 0);
+                
                 if (item.isRice) {
                   return (
                     <div key={item.id || idx} style={{ marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', alignItems: 'flex-start' }}>
                         <div style={{ flex: '1', minWidth: '80px' }}>
                           <div style={{ fontWeight: 'bold', color: '#f1f5f9', fontSize: '1.05rem', lineHeight: '1.2' }}>{item.name}</div>
-                          <div style={{ color: '#00F5C8', fontWeight: 'bold', marginTop: '6px' }}>{symbol}{(item.unitPrice * item.quantity).toFixed(2)}</div>
+                          <div style={{ color: '#00F5C8', fontWeight: 'bold', marginTop: '6px' }}>{symbol}{(displayUnitPrice * item.quantity).toFixed(2)}</div>
                         </div>
                         <div style={{ flex: '1.5', color: '#94a3b8', fontSize: '0.85rem', textAlign: 'center', padding: '0 8px' }}>
-                          {item.quantity} × {item.packSize} @ {symbol}{item.unitPrice.toFixed(2)} / pack
+                          {item.quantity} × {item.packSize} @ {symbol}{displayUnitPrice.toFixed(2)} / pack
                         </div>
                         <div style={{ flex: '1', color: '#64748b', fontSize: '0.85rem', textAlign: 'right' }}>
                           Packing:<br/> <span style={{ color: '#94a3b8' }}>{item.selectedPacking}</span>
@@ -275,7 +299,7 @@ const Cart = () => {
                       {item.packingPrice > 0 && (
                         <div style={{ background: 'rgba(245, 158, 11, 0.08)', padding: '10px 15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
                           <span style={{ color: '#f59e0b', fontSize: '0.9rem' }}>Packing Cost:</span>
-                          <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>{symbol}{(item.packingPrice * item.quantity).toFixed(2)}</span>
+                          <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>{symbol}{(displayPackingPrice * item.quantity).toFixed(2)}</span>
                         </div>
                       )}
                     </div>
@@ -316,9 +340,13 @@ const Cart = () => {
               </div>
             </div>
             <button className="checkout-btn" onClick={() => setIsCheckoutOpen(true)}>
-              Proceed to Checkout
+              {user ? 'Proceed to Checkout' : 'Guest Checkout'}
             </button>
-            <p className="guest-checkout-text">Guest Checkout</p>
+            {!user && (
+              <p className="guest-checkout-text">
+                Or <span style={{ color: '#00F5C8', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => window.location.href='/signin'}>Sign In</span> to save your order history
+              </p>
+            )}
           </div>
         </div>
 
@@ -556,6 +584,7 @@ const Cart = () => {
         onClose={() => setIsCheckoutOpen(false)}
         cartItems={cartItems}
         profile={completeProfile}
+        onRemoveItem={removeFromCart}
         currencyRates={{ USD: 1, INR: 83.5, AED: 3.67, GBP: 0.79, EUR: 0.92, SAR: 3.75, OMR: 0.38, KWD: 0.31, QAR: 3.64, MYR: 4.70, SGD: 1.35, AUD: 1.52, CAD: 1.36, THB: 35.80, TRY: 32.50, ZAR: 18.90 }}
         currencySymbols={{ USD: "$", INR: "₹", AED: "د.إ", GBP: "£", EUR: "€", SAR: "ر.س", OMR: "ر.ع.", KWD: "ك.د", QAR: "ر.ق", MYR: "RM", SGD: "S$", AUD: "A$", CAD: "C$", THB: "฿", TRY: "₺", ZAR: "R" }}
         selectedCurrency="USD"

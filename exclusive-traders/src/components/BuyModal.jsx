@@ -951,18 +951,57 @@ const BuyModal = ({ isOpen, onClose, product, productId, profile, industry }) =>
 
   // --- Save to Firebase ---
   const saveQuoteToFirebase = async (quoteData) => {
+    const cleanUndefined = (obj) => {
+      if (obj === undefined) return null;
+      if (obj === null) return null;
+      if (Array.isArray(obj)) {
+        return obj.map(item => cleanUndefined(item));
+      }
+      if (typeof obj === 'object') {
+        const cleaned = {};
+        for (const key of Object.keys(obj)) {
+          const val = obj[key];
+          if (val !== undefined) {
+            cleaned[key] = cleanUndefined(val);
+          }
+        }
+        return cleaned;
+      }
+      return obj;
+    };
+
     try {
       const quotesRef = ref(quoteDatabase, 'quotes');
-      const newQuoteRef = push(quotesRef);
-      const quoteDataWithId = {
+      const snapshot = await get(quotesRef);
+      
+      let nextNum = 1;
+      if (snapshot.exists()) {
+        const quotesObj = snapshot.val();
+        const keys = Object.keys(quotesObj);
+        let maxNum = 0;
+        keys.forEach(k => {
+          if (k.startsWith('quote-')) {
+            const num = parseInt(k.substring(6), 10);
+            if (!isNaN(num) && num > maxNum) {
+              maxNum = num;
+            }
+          }
+        });
+        nextNum = maxNum + 1;
+      }
+      
+      const quoteKey = `quote-${nextNum}`;
+      const specificQuoteRef = ref(quoteDatabase, `quotes/${quoteKey}`);
+      
+      const quoteDataWithId = cleanUndefined({
         ...quoteData,
-        id: newQuoteRef.key,
+        id: quoteKey,
         createdAt: new Date().toISOString(),
         status: 'new',
         storedIn: 'firebasegetquote-database'
-      };
-      await set(newQuoteRef, quoteDataWithId);
-      return newQuoteRef.key;
+      });
+      await set(specificQuoteRef, quoteDataWithId);
+      return quoteKey;
     } catch (error) {
       console.error('Error saving quote:', error);
       throw error;
@@ -1111,7 +1150,6 @@ ${cifMessage}
 ${brandingMessage}
 - Estimated Total: $${estimatedBillUSD.total.toFixed(2)}
 - Quote ID: ${quoteId}
-- Database: firebasegetquote
 ${additionalInfo ? `\n- Additional Info: ${additionalInfo}` : ""}
 Thank you!`;
       window.open(`https://wa.me/+919703744571?text=${encodeURIComponent(message)}`, "_blank");
@@ -1133,7 +1171,6 @@ ${cifMessage}
 - Packing Cost: $${estimatedBillUSD.packingCost.toFixed(2)}
 ${brandingMessage}
 - Estimated Total: $${estimatedBillUSD.total.toFixed(2)}
-- Database: firebasegetquote (save failed)
 ${additionalInfo ? `\n- Additional Info: ${additionalInfo}` : ""}
 Thank you!`;
       window.open(`https://wa.me/+919703744571?text=${encodeURIComponent(fallbackMessage)}`, "_blank");

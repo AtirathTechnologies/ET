@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import ThankYouPopup from "./ThankYouPopup";
 import { submitQuote } from "../firebase";
-import { Minus, Plus, X } from 'lucide-react';
+import { Minus, Plus, X, Trash2 } from 'lucide-react';
 
 const CURRENCY_CONFIG = {
   baseCurrency: "USD",
@@ -20,7 +20,17 @@ const CURRENCY_CONFIG = {
   }
 };
 
-const CheckoutModal = ({ isOpen, onClose, cartItems, profile, onOrderSubmitted }) => {
+const CheckoutModal = ({ 
+  isOpen, 
+  onClose, 
+  cartItems, 
+  profile, 
+  onOrderSubmitted,
+  onRemoveItem,
+  currencyRates: propCurrencyRates,
+  currencySymbols: propCurrencySymbols,
+  selectedCurrency: propSelectedCurrency
+}) => {
   // Inject global CSS to remove top spacing from cart page (only once)
   useEffect(() => {
     if (!document.getElementById("cart-spacing-fix")) {
@@ -42,8 +52,8 @@ const CheckoutModal = ({ isOpen, onClose, cartItems, profile, onOrderSubmitted }
     }
   }, []);
 
-  const currencyRates = CURRENCY_CONFIG.rates;
-  const currencySymbols = CURRENCY_CONFIG.symbols;
+  const currencyRates = propCurrencyRates || CURRENCY_CONFIG.rates;
+  const currencySymbols = propCurrencySymbols || CURRENCY_CONFIG.symbols;
 
   // Form state (all original)
   const [fullName, setFullName] = useState("");
@@ -62,20 +72,18 @@ const CheckoutModal = ({ isOpen, onClose, cartItems, profile, onOrderSubmitted }
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showThankYou, setShowThankYou] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const [hasAutoFilled, setHasAutoFilled] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState("USD");
 
-  // Dynamically set default currency based on cart items
+  // Dynamically set default currency based on cart items or propSelectedCurrency
   useEffect(() => {
-    if (isOpen && cartItems && cartItems.length > 0) {
-      const hasRice = cartItems.some(item => 
-        item.isRice || 
-        item.categoryId === 'rice' || 
-        (item.category && item.category.toLowerCase().includes('rice'))
-      );
-      setSelectedCurrency(hasRice ? "INR" : "USD");
+    if (isOpen) {
+      if (propSelectedCurrency) {
+        setSelectedCurrency(propSelectedCurrency);
+      } else {
+        setSelectedCurrency("USD"); // Default to USD for all products including rice
+      }
     }
-  }, [isOpen, cartItems]);
+  }, [isOpen, propSelectedCurrency]);
   const [orderQuantities, setOrderQuantities] = useState({});
   const [pickupLocation, setPickupLocation] = useState({ city: "", state: "", country: "" });
   const [deliveryLocation, setDeliveryLocation] = useState({ city: "", state: "", country: "" });
@@ -162,17 +170,29 @@ const CheckoutModal = ({ isOpen, onClose, cartItems, profile, onOrderSubmitted }
   }, [isOpen, cartItems]);
 
   useEffect(() => {
-    if (isOpen && profile && !hasAutoFilled) {
-      setFullName(profile.fullName || profile.displayName || profile.name || "");
-      setEmail(profile.email || "");
-      setCountry(profile.country || "");
-      setState(profile.state || "");
-      setCity(profile.city || "");
-      setPincode(profile.pincode || "");
-      if (profile.phone) setPhoneNumber(profile.phone.toString().replace(/\D/g, "").slice(-10));
-      setHasAutoFilled(true);
+    if (isOpen) {
+      let activeProfile = profile || {};
+      
+      // If profile from props lacks data, try localStorage fallback immediately
+      if (!activeProfile.country && !activeProfile.address?.country) {
+        try {
+          const stored = localStorage.getItem('current_user') || localStorage.getItem('currentUser');
+          if (stored) {
+             const parsed = JSON.parse(stored);
+             activeProfile = { ...parsed, ...activeProfile };
+          }
+        } catch (e) {}
+      }
+
+      setFullName(activeProfile.fullName || activeProfile.displayName || activeProfile.name || "");
+      setEmail(activeProfile.email || "");
+      setCountry(activeProfile.country || activeProfile.address?.country || "");
+      setState(activeProfile.state || activeProfile.address?.state || "");
+      setCity(activeProfile.city || activeProfile.address?.city || "");
+      setPincode(activeProfile.pincode || activeProfile.address?.pincode || "");
+      setPhoneNumber(activeProfile.phone ? activeProfile.phone.toString().replace(/\D/g, "").slice(-10) : "");
     }
-  }, [isOpen, profile, hasAutoFilled]);
+  }, [isOpen, profile]);
 
   const getCartSubtotal = () => cartItems.reduce((sum, item, idx) => sum + getItemTotal(item, orderQuantities[idx] || item.quantity || 1), 0);
   const getTotalQuantity = () => cartItems.reduce((sum, item, idx) => {
@@ -278,7 +298,11 @@ const CheckoutModal = ({ isOpen, onClose, cartItems, profile, onOrderSubmitted }
     };
 
     try {
-      const quoteId = await submitQuote(quoteData);
+      const res = await submitQuote(quoteData);
+      if (!res.success) {
+        throw new Error(res.error || "Failed to submit quote");
+      }
+      const quoteId = res.quoteId;
       let transportMsg = "";
       if (transportType === 'road') transportMsg = `- Transport: Road\n- Pickup: ${pickupLocation.city}, ${pickupLocation.state}, ${pickupLocation.country}\n- Delivery: ${deliveryLocation.city}, ${deliveryLocation.state}, ${deliveryLocation.country}`;
       else if (transportType === 'air') transportMsg = `- Transport: Air Freight\n- Airport of Loading: ${airportOfLoading.airportName}, ${airportOfLoading.country}\n- Airport of Destination: ${airportOfDestination.airportName}, ${airportOfDestination.country}`;
@@ -351,11 +375,13 @@ Thank you!`;
             display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}><X size={18} /></button>
 
-          {/* Header - Zero top padding */}
-          <div style={{ padding: '0 24px', borderBottom: '1px solid rgba(0,245,200,0.2)' }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#00F5C8', margin: '12px 0 4px' }}>Checkout ({cartItems.length} Items)</h2>
-            <p style={{ color: '#94a3b8', margin: '0 0 12px' }}>Review your cart and submit a quote request</p>
-          </div>
+           {/* Header - Zero top padding */}
+           <div style={{ padding: '0 24px', borderBottom: '1px solid rgba(0,245,200,0.2)' }}>
+             <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#00F5C8', margin: '12px 0 4px' }}>
+               {profile && (profile.uid || profile.email) ? 'Checkout' : 'Guest Checkout'} ({cartItems.length} Items)
+             </h2>
+             <p style={{ color: '#94a3b8', margin: '0 0 12px' }}>Review your cart and submit a quote request</p>
+           </div>
 
           <div style={{ flex: 1, overflow: 'auto', padding: '12px 24px' }}>
             <div style={{ display: 'flex', gap: '24px', flexDirection: window.innerWidth <= 768 ? 'column' : 'row' }}>
@@ -364,7 +390,6 @@ Thank you!`;
                 <form onSubmit={handleSubmit}>
                   {/* Currency Selector - INR first */}
                   <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-                    <label style={{ color: '#cbd5e1', marginRight: '10px', fontSize: '0.9rem' }}>Display Currency:</label>
                     <select value={selectedCurrency} onChange={(e) => setSelectedCurrency(e.target.value)} style={{ background: '#1e293b', color: '#f1f5f9', border: '1px solid #334155', borderRadius: '8px', padding: '4px 8px', fontSize: '0.85rem', width: '100px' }}>
                       {availableCurrencies.map(curr => <option key={curr.code} value={curr.code}>{curr.symbol} {curr.code}</option>)}
                     </select>
@@ -394,7 +419,7 @@ Thank you!`;
                                 </div>
                                 {item.selectedPacking && (
                                   <div style={{ fontSize: '0.8rem', color: '#cbd5e1', marginBottom: '4px' }}>
-                                    <span style={{ color: '#94a3b8' }}>Selected Packing:</span> {item.selectedPacking}
+                                    <span style={{ color: '#94a3b8' }}>Packing Modal:</span> {item.selectedPacking}
                                   </div>
                                 )}
                                 <div style={{ fontSize: '0.8rem', color: '#cbd5e1', marginBottom: '4px' }}>
@@ -410,10 +435,38 @@ Thank you!`;
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>Order Qty:</span>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#0f172a', padding: '2px 10px', borderRadius: '40px', border: '1px solid #334155' }}>
-                                  <button type="button" onClick={() => decQty(idx)} style={{ background: 'transparent', border: 'none', color: '#00F5C8', cursor: 'pointer', padding: '2px' }}><Minus size={14} /></button>
+                                  <button
+                                    type="button"
+                                    onClick={() => decQty(idx)}
+                                    disabled={orderQty <= 1}
+                                    style={{
+                                      background: 'transparent', border: 'none',
+                                      color: orderQty <= 1 ? '#334155' : '#00F5C8',
+                                      cursor: orderQty <= 1 ? 'not-allowed' : 'pointer',
+                                      padding: '2px'
+                                    }}
+                                  ><Minus size={14} /></button>
                                   <span style={{ color: '#f1f5f9', fontWeight: '500', minWidth: '28px', textAlign: 'center' }}>{orderQty}</span>
                                   <button type="button" onClick={() => incQty(idx)} style={{ background: 'transparent', border: 'none', color: '#00F5C8', cursor: 'pointer', padding: '2px' }}><Plus size={14} /></button>
                                 </div>
+                                {onRemoveItem && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onRemoveItem(item.id || item.cartId || idx)}
+                                    title="Remove item"
+                                    style={{
+                                      background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+                                      borderRadius: '8px', color: '#ef4444', cursor: 'pointer',
+                                      padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px',
+                                      fontSize: '0.75rem', fontWeight: '500',
+                                      transition: 'all 0.2s'
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.25)'; e.currentTarget.style.borderColor = '#ef4444'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'; }}
+                                  >
+                                    <Trash2 size={13} /> Delete
+                                  </button>
+                                )}
                               </div>
                               {item.brand && <div style={{ color: '#cbd5e1', fontSize: '0.8rem' }}><span style={{ color: '#94a3b8' }}>Brand:</span> {item.brand}</div>}
                             </div>
@@ -544,45 +597,144 @@ Thank you!`;
 
               {/* Right Column - Summary */}
               <div style={{ flex: 1, background: 'rgba(30,41,59,0.4)', borderRadius: '20px', padding: '20px', height: 'fit-content', position: 'sticky', top: '20px' }}>
-                <h4 style={{ fontSize: '1.2rem', fontWeight: '600', color: '#00F5C8', marginBottom: '16px', textAlign: 'center' }}>Cart Summary ({cartItems.length} Items) - {selectedCurrency}</h4>
-                <div style={{ padding: '10px 15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', borderLeft: '3px solid #00F5C8', marginBottom: '20px', fontSize: '0.85rem', color: '#cbd5e1', textAlign: 'center' }}>
-                  This is an estimated bill. Final pricing may vary.
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    <span style={{ color: '#94a3b8' }}>Items in Cart:</span><span style={{ color: '#f1f5f9', fontWeight: '500' }}>{cartItems.length} products</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    <span style={{ color: '#94a3b8' }}>Total Quantity:</span><span style={{ color: '#f1f5f9', fontWeight: '500' }}>{getTotalQuantity()} units</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    <span style={{ color: '#94a3b8' }}>Products Subtotal:</span><span style={{ color: '#f1f5f9', fontWeight: '500' }}>{symbol}{getProductsSubtotal().toFixed(2)}</span>
-                  </div>
-                  {getTotalPackingCost() > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', marginTop: '4px' }}>
-                      <span style={{ color: '#f59e0b' }}>Packing Cost:</span><span style={{ color: '#f59e0b', fontWeight: 'bold' }}>{symbol}{getTotalPackingCost().toFixed(2)}</span>
+                {cartItems.length === 1 ? (
+                  // Custom layout for single product order now
+                  (() => {
+                    const item = cartItems[0];
+                    const orderQty = orderQuantities[0] || item.quantity || 1;
+                    
+                    const rawPrice = item.unitPrice ?? item.price ?? item.productPrice ?? 0;
+                    const packingPrice = item.packingPrice ?? 0;
+                    
+                    const usdPrice = item.isRice ? (rawPrice / (currencyRates["INR"] || 90.5)) : rawPrice;
+                    const usdPacking = item.isRice ? (packingPrice / (currencyRates["INR"] || 90.5)) : packingPrice;
+                    
+                    const displayProductPrice = convertFromUSD(usdPrice * orderQty);
+                    const displayPackingPrice = convertFromUSD(usdPacking * orderQty);
+                    
+                    const extractKg = (sizeStr) => {
+                      if (!sizeStr) return 1;
+                      const match = sizeStr.match(/(\d+(?:\.\d+)?)/);
+                      return match ? parseFloat(match[1]) : 1;
+                    };
+                    
+                    const displayPackingCostPerKg = item.isRice && item.packSize
+                      ? convertFromUSD(usdPacking) / extractKg(item.packSize)
+                      : 0;
+
+                    return (
+                      <div className="price-breakdown-section">
+                        <h4 className="price-breakdown-title" style={{ fontSize: '1.2rem', fontWeight: '600', color: '#00F5C8', marginBottom: '16px', textAlign: 'center' }}>
+                          Estimated Bill Breakdown ({selectedCurrency})
+                        </h4>
+                        <div className="estimate-note" style={{ padding: '10px 15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', borderLeft: '3px solid #00F5C8', marginBottom: '20px', fontSize: '0.85rem', color: '#cbd5e1', textAlign: 'center' }}>
+                          This is an estimated bill. Final pricing may vary based on actual costs and market conditions.
+                        </div>
+                        
+                        <div className="price-breakdown-grid" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <div className="price-item" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                            <span className="price-label" style={{ color: '#94a3b8' }}>Packing:</span>
+                            <span className="price-value" style={{ color: '#f1f5f9', fontWeight: '500' }}>{item.selectedPacking || "N/A"}</span>
+                          </div>
+                          
+                          {item.isRice && displayPackingPrice > 0 && (
+                            <>
+                              <div className="price-item" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                <span className="price-label" style={{ color: '#94a3b8' }}>Packing Cost per kg:</span>
+                                <span className="price-value" style={{ color: '#f1f5f9', fontWeight: '500' }}>{symbol}{displayPackingCostPerKg.toFixed(2)}/kg</span>
+                              </div>
+                              <div className="price-item" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                <span className="price-label" style={{ color: '#94a3b8' }}>Total Packing Cost:</span>
+                                <span className="price-value" style={{ color: '#f1f5f9', fontWeight: '500' }}>{symbol}{displayPackingPrice.toFixed(2)}</span>
+                              </div>
+                            </>
+                          )}
+                          
+                          <div className="price-item" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                            <span className="price-label" style={{ color: '#94a3b8' }}>Quantity:</span>
+                            <span className="price-value" style={{ color: '#f1f5f9', fontWeight: '500' }}>{item.packSize || "N/A"}</span>
+                          </div>
+                          
+                          <div className="price-item" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                            <span className="price-label" style={{ color: '#94a3b8' }}>Order Quantity:</span>
+                            <span className="price-value" style={{ color: '#f1f5f9', fontWeight: '500' }}>{orderQty} unit{orderQty > 1 ? 's' : ''}</span>
+                          </div>
+                          
+                          <div className="price-item" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                            <span className="price-label" style={{ color: '#94a3b8' }}>Quantity Price:</span>
+                            <span className="price-value" style={{ color: '#f1f5f9', fontWeight: '500' }}>{symbol}{displayProductPrice.toFixed(2)}</span>
+                          </div>
+                          
+                          {transportCost > 0 && (
+                            <div className="price-item" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                              <span className="price-label" style={{ color: '#94a3b8' }}>Transport Cost:</span>
+                              <span className="price-value" style={{ color: '#f1f5f9', fontWeight: '500' }}>{symbol}{transportCost.toFixed(2)}</span>
+                            </div>
+                          )}
+                          
+                          {brandingCost > 0 && (
+                            <div className="price-item" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                              <span className="price-label" style={{ color: '#94a3b8' }}>Branding Cost:</span>
+                              <span className="price-value" style={{ color: '#f1f5f9', fontWeight: '500' }}>{symbol}{brandingCost.toFixed(2)}</span>
+                            </div>
+                          )}
+                          
+                          <div className="price-item final-total" style={{ 
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+                            padding: '12px 16px', marginTop: '16px', 
+                            border: '2px solid #00F5C8', borderRadius: '12px', 
+                            background: 'rgba(0, 245, 200, 0.05)' 
+                          }}>
+                            <span className="price-label" style={{ fontWeight: '700', color: '#00F5C8' }}>Total Price:</span>
+                            <span className="price-value" style={{ fontWeight: '700', color: '#00F5C8', fontSize: '1.25rem' }}>{symbol}{finalTotal.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <>
+                    <h4 style={{ fontSize: '1.2rem', fontWeight: '600', color: '#00F5C8', marginBottom: '16px', textAlign: 'center' }}>Cart Summary ({cartItems.length} Items) - {selectedCurrency}</h4>
+                    <div style={{ padding: '10px 15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', borderLeft: '3px solid #00F5C8', marginBottom: '20px', fontSize: '0.85rem', color: '#cbd5e1', textAlign: 'center' }}>
+                      This is an estimated bill. Final pricing may vary.
                     </div>
-                  )}
-                  {getTotalPackingCost() > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', marginTop: '4px' }}>
-                      <span style={{ color: '#94a3b8' }}>Subtotal (inc. Packing):</span><span style={{ color: '#f1f5f9', fontWeight: '500' }}>{symbol}{subtotal.toFixed(2)}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <span style={{ color: '#94a3b8' }}>Items in Cart:</span><span style={{ color: '#f1f5f9', fontWeight: '500' }}>{cartItems.length} products</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <span style={{ color: '#94a3b8' }}>Total Quantity:</span><span style={{ color: '#f1f5f9', fontWeight: '500' }}>{getTotalQuantity()} units</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <span style={{ color: '#94a3b8' }}>Products Subtotal:</span><span style={{ color: '#f1f5f9', fontWeight: '500' }}>{symbol}{getProductsSubtotal().toFixed(2)}</span>
+                      </div>
+                      {getTotalPackingCost() > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', marginTop: '4px' }}>
+                          <span style={{ color: '#f59e0b' }}>Packing Cost:</span><span style={{ color: '#f59e0b', fontWeight: 'bold' }}>{symbol}{getTotalPackingCost().toFixed(2)}</span>
+                        </div>
+                      )}
+                      {getTotalPackingCost() > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', marginTop: '4px' }}>
+                          <span style={{ color: '#94a3b8' }}>Subtotal (inc. Packing):</span><span style={{ color: '#f1f5f9', fontWeight: '500' }}>{symbol}{subtotal.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {transportType && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                          <span style={{ color: '#94a3b8' }}>Transport Cost:</span><span style={{ color: '#f1f5f9', fontWeight: '500' }}>{symbol}{transportCost.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {brandingRequired === "Yes" && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                          <span style={{ color: '#94a3b8' }}>Branding Cost:</span><span style={{ color: '#f1f5f9', fontWeight: '500' }}>{symbol}{brandingCost.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0', marginTop: '12px', borderTop: '2px solid #00F5C8' }}>
+                        <span style={{ fontWeight: '700', color: '#f1f5f9' }}>Final Total:</span>
+                        <span style={{ fontWeight: '700', color: '#00F5C8', fontSize: '1.2rem' }}>{symbol}{finalTotal.toFixed(2)}</span>
+                      </div>
                     </div>
-                  )}
-                  {transportType && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <span style={{ color: '#94a3b8' }}>Transport Cost:</span><span style={{ color: '#f1f5f9', fontWeight: '500' }}>{symbol}{transportCost.toFixed(2)}</span>
-                    </div>
-                  )}
-                  {brandingRequired === "Yes" && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <span style={{ color: '#94a3b8' }}>Branding Cost:</span><span style={{ color: '#f1f5f9', fontWeight: '500' }}>{symbol}{brandingCost.toFixed(2)}</span>
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0', marginTop: '12px', borderTop: '2px solid #00F5C8' }}>
-                    <span style={{ fontWeight: '700', color: '#f1f5f9' }}>Final Total:</span>
-                    <span style={{ fontWeight: '700', color: '#00F5C8', fontSize: '1.2rem' }}>{symbol}{finalTotal.toFixed(2)}</span>
-                  </div>
-                </div>
+                  </>
+                )}
               </div>
             </div>
           </div>

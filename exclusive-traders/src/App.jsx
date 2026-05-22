@@ -29,7 +29,8 @@ import Blog from './components/Blog';
 import BlogPost from './components/BlogPost';
 import Leadership from './components/Leadership';
 import Contactus from './components/Contactus';
-import BuyModal from './components/BuyModal';
+import CheckoutModal from './components/CheckOutModal';
+import { formatProductToCartItem } from './utils/cartHelper';
 import EditProfile from './components/EditProfile';
 import TransportPage from './components/TransportPage';
 import Cart from './components/Cart';
@@ -63,6 +64,9 @@ const Settings = () => (
   </div>
 );
 
+const APP_CURRENCY_RATES = { USD: 1, INR: 83.5, AED: 3.67, GBP: 0.79, EUR: 0.92, SAR: 3.75, OMR: 0.38, KWD: 0.31, QAR: 3.64, MYR: 4.70, SGD: 1.35, AUD: 1.52, CAD: 1.36, THB: 35.80, TRY: 32.50, ZAR: 18.90 };
+const APP_CURRENCY_SYMBOLS = { USD: "$", INR: "₹", AED: "د.إ", GBP: "£", EUR: "€", SAR: "ر.س", OMR: "ر.ع.", KWD: "ك.د", QAR: "ر.ق", MYR: "RM", SGD: "S$", AUD: "A$", CAD: "C$", THB: "฿", TRY: "₺", ZAR: "R" };
+
 function App() {
   const [currentIndustry, setCurrentIndustry] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -83,10 +87,9 @@ function App() {
   const [showInnovationPage, setShowInnovationPage] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
 
-  // States for Buy Modal
-  const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [selectedIndustry, setSelectedIndustry] = useState('');
+  // States for Checkout Modal (Order Now)
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [checkoutItems, setCheckoutItems] = useState([]);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -119,7 +122,7 @@ function App() {
       if (user) {
         try {
           // Fetch full user profile from database
-          const profileData = await getUserProfile(user.uid);
+          const profileData = await getUserProfile(user.uid, user.email);
           const fullUser = {
             uid: user.uid,
             email: user.email,
@@ -214,17 +217,16 @@ function App() {
 
   const handleSearchChange = (term) => setSearchTerm(term);
 
-  // Buy Modal Handlers
+  // Checkout Modal (Order Now) Handlers
   const openBuyModal = (product, industry) => {
-    setSelectedProduct(product);
-    setSelectedIndustry(industry);
-    setIsBuyModalOpen(true);
+    const cartItem = formatProductToCartItem(product, industry, industry);
+    setCheckoutItems([cartItem]);
+    setIsCheckoutOpen(true);
   };
 
-  const closeBuyModal = () => {
-    setIsBuyModalOpen(false);
-    setSelectedProduct(null);
-    setSelectedIndustry('');
+  const closeCheckout = () => {
+    setIsCheckoutOpen(false);
+    setCheckoutItems([]);
   };
 
   // Sign-out
@@ -448,13 +450,15 @@ function App() {
         {/* Footer - Don't show on admin pages */}
         {!location.pathname.startsWith('/admin') && <Footer />}
 
-        {/* Buy Modal */}
-        <BuyModal
-          isOpen={isBuyModalOpen}
-          onClose={closeBuyModal}
-          product={selectedProduct}
+        {/* Checkout Modal for Order Now */}
+        <CheckoutModal
+          isOpen={isCheckoutOpen}
+          onClose={closeCheckout}
+          cartItems={checkoutItems}
           profile={currentUser}
-          industry={selectedIndustry}
+          currencyRates={APP_CURRENCY_RATES}
+          currencySymbols={APP_CURRENCY_SYMBOLS}
+          selectedCurrency="USD"
         />
 
         {/* Auth Modal */}

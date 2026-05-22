@@ -153,17 +153,28 @@ const SignIn = ({ navigateToPage, onAuthSuccess, location }) => {
 
         // Update last login
         try {
-          const userRef = ref(db, `users/${user.uid}`);
-          const userSnapshot = await get(userRef);
+          const usersRef = ref(db, 'users');
+          const userSnapshot = await get(usersRef);
           if (userSnapshot.exists()) {
-            await set(ref(db, `users/${user.uid}/lastLogin`), new Date().toISOString());
+            const users = userSnapshot.val();
+            const foundEntry = Object.entries(users).find(([k, u]) => u.uid === user.uid || u.email?.toLowerCase() === user.email?.toLowerCase());
+            if (foundEntry) {
+              const userKey = foundEntry[0];
+              await set(ref(db, `users/${userKey}/lastLogin`), new Date().toISOString());
+              
+              // Store user data in localStorage
+              await storeUserDataInLocalStorage(userKey, trimmedEmail);
+            } else {
+              // Fallback
+              await storeUserDataInLocalStorage(user.uid, trimmedEmail);
+            }
+          } else {
+            await storeUserDataInLocalStorage(user.uid, trimmedEmail);
           }
         } catch (dbError) {
           console.warn("Could not update last login:", dbError);
+          await storeUserDataInLocalStorage(user.uid, trimmedEmail);
         }
-
-        // Store user data in localStorage
-        await storeUserDataInLocalStorage(user.uid, trimmedEmail);
         localStorage.removeItem('pending_user_email'); // just in case
 
         const isAdmin = user.email.toLowerCase() === DEFAULT_ADMIN.email.toLowerCase();
@@ -210,36 +221,24 @@ const SignIn = ({ navigateToPage, onAuthSuccess, location }) => {
               await updateProfile(firebaseUser, { displayName: pendingUserData.displayName });
             }
 
-            // Move user data to permanent location
-            const newUserRef = ref(db, `users/${firebaseUser.uid}`);
+            // Update user data at its sequential location
+            const newUserRef = ref(db, `users/${pendingUserId}`);
             await set(newUserRef, {
+              ...pendingUserData,
               uid: firebaseUser.uid,
               email: firebaseUser.email,
-              displayName: pendingUserData.displayName || "",
-              fullName: pendingUserData.fullName || "",
-              country: pendingUserData.country || "",
-              state: pendingUserData.state || "",
-              city: pendingUserData.city || "",
-              pincode: pendingUserData.pincode || "",
-              phone: pendingUserData.phone || "",
-              phoneNumber: pendingUserData.phoneNumber || {},
-              address: pendingUserData.address || {},
               role: "user",
               isAdmin: false,
               isVerified: false,
               isActive: true,
               accountStatus: "active",
-              createdAt: pendingUserData.createdAt || new Date().toISOString(),
               lastLogin: new Date().toISOString(),
               signupCompleted: true,
               createdFromPending: true
             });
 
-            // Remove old pending data
-            await remove(ref(db, `users/${pendingUserId}`));
-
             // Store user data in localStorage
-            await storeUserDataInLocalStorage(firebaseUser.uid, trimmedEmail);
+            await storeUserDataInLocalStorage(pendingUserId, trimmedEmail);
             localStorage.removeItem('pending_user_email');
 
             if (onAuthSuccess) onAuthSuccess();

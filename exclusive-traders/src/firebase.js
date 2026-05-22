@@ -15,14 +15,14 @@ import {
 
 // ================= FIREBASE CONFIG =================
 const firebaseConfig = {
-  apiKey: "AIzaSyBtmyexM78vVascfmExnwTnbXjDnxh4XtQ",
-  authDomain: "et-getquote.firebaseapp.com",
-  databaseURL: "https://et-getquote-default-rtdb.firebaseio.com",
-  projectId: "et-getquote",
-  storageBucket: "et-getquote.firebasestorage.app",
-  messagingSenderId: "686843981203",
-  appId: "1:686843981203:web:68656bde55932b9a6acc66",
-  measurementId: "G-772LRM5FDB"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 // ================= INITIALIZE FIREBASE =================
@@ -57,20 +57,30 @@ try {
 
 // ================= DEFAULT ADMIN =================
 export const DEFAULT_ADMIN = {
-  email: "admin@exclusivetrader.com",
-  password: "Admin123!"
+  email: import.meta.env.VITE_ADMIN_EMAIL,
+  password: import.meta.env.VITE_ADMIN_PASSWORD
 };
 
 // ================= CORE INTEGRATION FUNCTIONS =================
 
 export const storeUserProfile = async (userId, userData) => {
   try {
-    const userRef = ref(db, `users/${userId}`);
+    const usersRef = ref(db, 'users');
+    const snapshot = await get(usersRef);
+    let userKey = userId;
+    if (snapshot.exists()) {
+      const usersObj = snapshot.val();
+      const foundEntry = Object.entries(usersObj).find(([k, u]) => u.uid === userId || u.tempUserId === userId || k === userId);
+      if (foundEntry) {
+        userKey = foundEntry[0];
+      }
+    }
+    const userRef = ref(db, `users/${userKey}`);
     await update(userRef, {
       ...userData,
       updatedAt: serverTimestamp()
     });
-    console.log("✅ User profile stored/updated:", userId);
+    console.log("✅ User profile stored/updated:", userKey);
     return { success: true };
   } catch (error) {
     console.error("❌ Error storing user profile:", error);
@@ -78,12 +88,26 @@ export const storeUserProfile = async (userId, userData) => {
   }
 };
 
-export const getUserProfile = async (userId) => {
+export const getUserProfile = async (userId, userEmail = null) => {
   try {
     const userRef = ref(db, `users/${userId}`);
-    const snapshot = await get(userRef);
+    let snapshot = await get(userRef);
     if (snapshot.exists()) {
       return snapshot.val();
+    }
+    // Search lookup for sequential key mapping or email
+    const usersRef = ref(db, 'users');
+    snapshot = await get(usersRef);
+    if (snapshot.exists()) {
+      const usersObj = snapshot.val();
+      const foundEntry = Object.entries(usersObj).find(([k, u]) => 
+        u.uid === userId || u.tempUserId === userId || 
+        (u.email && userEmail && u.email.toLowerCase() === userEmail.toLowerCase()) ||
+        (u.email && auth.currentUser?.email && u.email.toLowerCase() === auth.currentUser.email.toLowerCase())
+      );
+      if (foundEntry) {
+        return foundEntry[1];
+      }
     }
     return null;
   } catch (error) {
@@ -92,17 +116,62 @@ export const getUserProfile = async (userId) => {
   }
 };
 
+const cleanUndefined = (obj) => {
+  if (obj === undefined) return null;
+  if (obj === null) return null;
+  if (Array.isArray(obj)) {
+    return obj.map(item => cleanUndefined(item));
+  }
+  if (typeof obj === 'object') {
+    const cleaned = {};
+    for (const key of Object.keys(obj)) {
+      const val = obj[key];
+      if (val !== undefined) {
+        cleaned[key] = cleanUndefined(val);
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+};
+
 export const submitQuote = async (quoteData) => {
   try {
     const quotesRef = ref(db, 'quotes');
-    const newQuoteRef = push(quotesRef);
-    await set(newQuoteRef, {
+    const snapshot = await get(quotesRef);
+    
+    let nextNum = 1;
+    if (snapshot.exists()) {
+      const quotesObj = snapshot.val();
+      const keys = Object.keys(quotesObj);
+      let maxNum = 0;
+      keys.forEach(k => {
+        if (k.startsWith('quote-')) {
+          const num = parseInt(k.substring(6), 10);
+          if (!isNaN(num) && num > maxNum) {
+            maxNum = num;
+          }
+        }
+      });
+      nextNum = maxNum + 1;
+    }
+    
+    const quoteKey = `quote-${nextNum}`;
+    const specificQuoteRef = ref(db, `quotes/${quoteKey}`);
+    
+    const cleanedData = cleanUndefined({
       ...quoteData,
-      status: 'pending',
+      id: quoteKey,
+      status: 'pending'
+    });
+    
+    await set(specificQuoteRef, {
+      ...cleanedData,
       createdAt: serverTimestamp()
     });
-    console.log("✅ Quote submitted successfully");
-    return { success: true, quoteId: newQuoteRef.key };
+    
+    console.log(`✅ Quote submitted successfully as ${quoteKey}`);
+    return { success: true, quoteId: quoteKey };
   } catch (error) {
     console.error("❌ Error submitting quote:", error);
     return { success: false, error };
@@ -127,11 +196,25 @@ export const fetchAllUsers = async () => {
 export const getUserById = async (userId) => {
   try {
     const userRef = ref(db, `users/${userId}`);
-    const snapshot = await get(userRef);
-    if (!snapshot.exists()) return null;
-    const userData = snapshot.val();
-    if (userData.email === DEFAULT_ADMIN.email) return null;
-    return { id: userId, ...userData };
+    let snapshot = await get(userRef);
+    if (snapshot.exists()) {
+      const userData = snapshot.val();
+      if (userData.email === DEFAULT_ADMIN.email) return null;
+      return { id: userId, ...userData };
+    }
+    // Search lookup for sequential key mapping
+    const usersRef = ref(db, 'users');
+    snapshot = await get(usersRef);
+    if (snapshot.exists()) {
+      const usersObj = snapshot.val();
+      const foundEntry = Object.entries(usersObj).find(([k, u]) => u.uid === userId || u.tempUserId === userId);
+      if (foundEntry) {
+        const userData = foundEntry[1];
+        if (userData.email === DEFAULT_ADMIN.email) return null;
+        return { id: foundEntry[0], ...userData };
+      }
+    }
+    return null;
   } catch (error) {
     console.error("❌ Error fetching user:", error);
     throw error;
@@ -140,7 +223,17 @@ export const getUserById = async (userId) => {
 
 export const updateUser = async (userId, updates) => {
   try {
-    const userRef = ref(db, `users/${userId}`);
+    const usersRef = ref(db, 'users');
+    const snapshot = await get(usersRef);
+    let userKey = userId;
+    if (snapshot.exists()) {
+      const usersObj = snapshot.val();
+      const foundEntry = Object.entries(usersObj).find(([k, u]) => u.uid === userId || u.tempUserId === userId || k === userId);
+      if (foundEntry) {
+        userKey = foundEntry[0];
+      }
+    }
+    const userRef = ref(db, `users/${userKey}`);
     await update(userRef, {
       ...updates,
       updatedAt: serverTimestamp()
@@ -154,7 +247,17 @@ export const updateUser = async (userId, updates) => {
 
 export const deleteUser = async (userId) => {
   try {
-    const userRef = ref(db, `users/${userId}`);
+    const usersRef = ref(db, 'users');
+    const snapshot = await get(usersRef);
+    let userKey = userId;
+    if (snapshot.exists()) {
+      const usersObj = snapshot.val();
+      const foundEntry = Object.entries(usersObj).find(([k, u]) => u.uid === userId || u.tempUserId === userId || k === userId);
+      if (foundEntry) {
+        userKey = foundEntry[0];
+      }
+    }
+    const userRef = ref(db, `users/${userKey}`);
     await remove(userRef);
     return { success: true };
   } catch (error) {

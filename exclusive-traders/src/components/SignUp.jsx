@@ -280,13 +280,31 @@ const SignUp = ({ navigateToPage }) => {
         }
       }
 
-      // Generate a unique temporary ID for the user data (pending status)
-      const tempUserId = `pending_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // Generate a unique sequential user ID
+      const allUsersRef = ref(db, 'users');
+      const allUsersSnapshot = await get(allUsersRef);
+      let nextNum = 1;
+      if (allUsersSnapshot.exists()) {
+        const usersObj = allUsersSnapshot.val();
+        const keys = Object.keys(usersObj);
+        let maxNum = 0;
+        keys.forEach(k => {
+          if (k.startsWith('user-')) {
+            const num = parseInt(k.substring(5), 10);
+            if (!isNaN(num) && num > maxNum) {
+              maxNum = num;
+            }
+          }
+        });
+        nextNum = maxNum + 1;
+      }
+      const tempUserId = `user-${nextNum}`;
       const fullPhone = `${countryCode} ${phoneNumber}`;
 
       // Store user data in users collection with pending status
       const userRef = ref(db, `users/${tempUserId}`);
       await set(userRef, {
+        id: tempUserId,
         email: normalizedEmail,
         password: password,
         displayName: displayName.trim(),

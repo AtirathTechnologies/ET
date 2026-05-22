@@ -301,6 +301,16 @@ const BlogPost = () => {
 
   const post = blogPosts.find(p => p.id === parseInt(id));
 
+  useEffect(() => {
+    if (post) {
+      document.title = `${post.title} - Exclusive Traders`;
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) {
+        metaDesc.setAttribute('content', post.excerpt || `Read article on: ${post.title}`);
+      }
+    }
+  }, [post]);
+
   if (!post) {
     return (
       <div className="min-h-screen bg-dark text-light py-8 px-4">

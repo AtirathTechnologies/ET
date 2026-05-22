@@ -1,3 +1,5 @@
 fastapi
 feedparser
 httpx
+uvicorn
+python-dotenv

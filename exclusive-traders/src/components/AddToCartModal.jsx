@@ -251,7 +251,13 @@ const AddToCartModal = ({ isOpen, onClose, product, productId, onAddToCart, indu
       packCost = perKgInr * kg;
     } else {
       // Non‑rice: USD
-      const pricePerCarton = fullProduct.fob_price_usd || fullProduct["Ex-Mill_usd"] || fullProduct.price_usd_per_carton || 0;
+      const pricePerCarton = parseFloat(
+        fullProduct["Ex-Mill_usd"] || 
+        fullProduct.price_usd_per_carton || 
+        fullProduct.fob_price_usd || 
+        (typeof fullProduct.price === 'object' ? fullProduct.price?.value : fullProduct.price) || 
+        0
+      );
       const cartonCount = parseFloat(quantity);
       if (!isNaN(cartonCount)) {
         basePrice = pricePerCarton * cartonCount;
@@ -343,7 +349,14 @@ const AddToCartModal = ({ isOpen, onClose, product, productId, onAddToCart, indu
 
   const riceKg = isRice ? extractQuantityKg(quantity) : 0;
   const ricePackingPerKgInr = isRice ? getRicePackingPerKgInr() : 0;
-  const currencySymbol = isRice ? '₹' : '$';
+  
+  // Convert INR to USD for display
+  const exchangeRate = 90.5;
+  const displayProductPrice = isRice ? productPrice / exchangeRate : productPrice;
+  const displayPackingPrice = isRice ? packingPrice / exchangeRate : packingPrice;
+  const displayTotalPrice = isRice ? totalPrice / exchangeRate : totalPrice;
+  const displayRicePackingPerKg = isRice ? ricePackingPerKgInr / exchangeRate : 0;
+  const currencySymbol = '$';
 
   return (
     <div className="cart-modal-overlay">
@@ -443,23 +456,23 @@ const AddToCartModal = ({ isOpen, onClose, product, productId, onAddToCart, indu
               <>
                 <div className="summary-row">
                   <span className="summary-label">Product Price ({quantity}):</span>
-                  <span className="summary-value">{currencySymbol}{productPrice.toFixed(2)}</span>
+                  <span className="summary-value">{currencySymbol}{displayProductPrice.toFixed(2)}</span>
                 </div>
                 <div className="summary-row">
                   <span className="summary-label">Packing Cost:</span>
                   <span className="summary-value">
-                    {currencySymbol}{ricePackingPerKgInr.toFixed(2)}/kg × {riceKg}kg = {currencySymbol}{packingPrice.toFixed(2)}
+                    {currencySymbol}{displayRicePackingPerKg.toFixed(2)}/kg × {riceKg}kg = {currencySymbol}{displayPackingPrice.toFixed(2)}
                   </span>
                 </div>
                 <div className="summary-row total-row">
                   <span className="summary-label total-label">Total:</span>
-                  <span className="summary-value total-value">{currencySymbol}{totalPrice.toFixed(2)}</span>
+                  <span className="summary-value total-value">{currencySymbol}{displayTotalPrice.toFixed(2)}</span>
                 </div>
               </>
             ) : (
               <div className="summary-row total-row">
                 <span className="summary-label total-label">Total Amount:</span>
-                <span className="summary-value total-value">{currencySymbol}{totalPrice.toFixed(2)}</span>
+                <span className="summary-value total-value">{currencySymbol}{displayTotalPrice.toFixed(2)}</span>
               </div>
             )}
           </div>
